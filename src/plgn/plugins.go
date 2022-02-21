@@ -10,7 +10,7 @@ type PluginIdentifier struct {
 }
 
 func (plugin *PluginIdentifier) String() string {
-	return fmt.Sprintf("%v (%v)", plugin.PluginName, plugin.PluginVersion)
+	return fmt.Sprintf("%v (v%v)", plugin.PluginName, plugin.PluginVersion)
 }
 
 func NewPluginIdentifier(name string, version string) *PluginIdentifier {

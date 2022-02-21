@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"plugin"
 
 	"github.com/AsynkronIT/protoactor-go/actor"
@@ -91,7 +92,10 @@ func (state *SimpleBot) Receive(ctx actor.Context) {
 // Load a plugin.
 func (state *SimpleBot) loadPlugin(ident plgn.PluginIdentifier) (*plugin.Plugin, error) {
 	// try to load plugin from local filesystem first
-	plgnPath := path.Join(pathToPluginFiles, ident.PluginName, "-"+ident.PluginVersion, ".so")
+	plgnPath, err := filepath.Abs(path.Join(pathToPluginFiles, ident.PluginName+"_"+ident.PluginVersion+".so"))
+	if err != nil {
+		return nil, err
+	}
 
 	lfsPlgn, lfsErr := state.loadFsLocalPlugin(plgnPath)
 	if lfsErr == nil {
@@ -115,7 +119,7 @@ func (state *SimpleBot) loadPlugin(ident plgn.PluginIdentifier) (*plugin.Plugin,
 
 func (state *SimpleBot) downloadPlugin(ident plgn.PluginIdentifier, dest string) error {
 	// create URI for plugin
-	urlPath, err := url.Parse(ident.PluginName + "_" + ident.PluginVersion)
+	urlPath, err := url.Parse(ident.PluginName + "_" + ident.PluginVersion + ".so")
 	if err != nil {
 		return err
 	}
@@ -125,8 +129,18 @@ func (state *SimpleBot) downloadPlugin(ident plgn.PluginIdentifier, dest string)
 	logger.Info("Downloading plugin from remote repository", log.String("url", urlStr))
 	go util.HttpGetAsync(urlStr, rc)
 	// while request is pending open up destination file
+	absDirPath, pathErr := filepath.Abs(pathToPluginFiles)
+	if pathErr != nil {
+		return pathErr
+	}
+	dirErr := os.MkdirAll(absDirPath, 0777)
+	if dirErr != nil {
+		logger.Info("could not create directories", log.String("path", dest), log.Error(dirErr))
+		return dirErr
+	}
 	f, err := os.Create(dest)
 	if err != nil {
+		logger.Info("failed to open up file.", log.Error(err))
 		return err
 	}
 	defer f.Close()
@@ -140,7 +154,7 @@ func (state *SimpleBot) downloadPlugin(ident plgn.PluginIdentifier, dest string)
 	// file handle is acquired and request was successful: write request data to file
 	defer resp.Resp.Body.Close()
 	io.Copy(f, resp.Resp.Body)
-	logger.Info("Plugin successfully downloaded", log.String("url", urlStr), log.String("path", dest))
+	logger.Info("plugin successfully downloaded", log.String("url", urlStr), log.String("path", dest))
 	return nil
 }
 
@@ -150,10 +164,10 @@ func (state *SimpleBot) loadFsLocalPlugin(path string) (*plugin.Plugin, error) {
 	if len(pathRune) < 4 || string(pathRune[len(pathRune)-3:]) != ".so" {
 		return nil, fmt.Errorf("invalid file extension %v for local plugin. File extesnion must be \".so\"", path)
 	}
-	logger.Info("Loading plugin from local filesystem", log.String("path", path))
+	logger.Info("loading plugin from local filesystem", log.String("path", path))
 	plugin, err := plugin.Open(path)
 	if err != nil {
-		logger.Debug("Failed to load plugin locally", log.Error(err))
+		logger.Info("failed to load plugin locally", log.Error(err))
 		return nil, err
 	}
 
