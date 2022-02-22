@@ -1,6 +1,6 @@
 package msg
 
-import "github.com/Mushroomator/actor-botnet/src/plgn"
+import "github.com/Mushroomator/actor-bots/src/plgn"
 
 type SwitchActivePlugin plgn.PluginIdentifier
 

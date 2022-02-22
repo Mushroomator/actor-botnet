@@ -1,4 +1,4 @@
-module github.com/Mushroomator/actor-botnet
+module github.com/Mushroomator/actor-bots
 
 go 1.17
 

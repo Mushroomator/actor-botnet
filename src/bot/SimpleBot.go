@@ -11,8 +11,8 @@ import (
 
 	"github.com/AsynkronIT/protoactor-go/actor"
 	"github.com/AsynkronIT/protoactor-go/log"
-	"github.com/Mushroomator/actor-botnet/src/plgn"
-	"github.com/Mushroomator/actor-botnet/src/util"
+	"github.com/Mushroomator/actor-bots/src/plgn"
+	"github.com/Mushroomator/actor-bots/src/util"
 )
 
 type SimpleBot struct {

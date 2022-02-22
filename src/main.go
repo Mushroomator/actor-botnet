@@ -18,7 +18,7 @@ import (
 	"fmt"
 
 	"github.com/AsynkronIT/protoactor-go/actor"
-	"github.com/Mushroomator/actor-botnet/src/bot"
+	"github.com/Mushroomator/actor-bots/src/bot"
 )
 
 func main() {
