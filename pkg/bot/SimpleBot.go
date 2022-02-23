@@ -1,5 +1,19 @@
 package bot
 
+// Copyright 2022 Thomas Pilz
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+// 	http://www.apache.org/licenses/LICENSE-2.0
+
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import (
 	"fmt"
 	"io"
@@ -11,15 +25,17 @@ import (
 
 	"github.com/AsynkronIT/protoactor-go/actor"
 	"github.com/AsynkronIT/protoactor-go/log"
-	"github.com/Mushroomator/actor-bots/src/plgn"
-	"github.com/Mushroomator/actor-bots/src/util"
+	"github.com/Mushroomator/actor-bots/pkg/msg"
+	"github.com/Mushroomator/actor-bots/pkg/plgn"
+	"github.com/Mushroomator/actor-bots/pkg/util"
 )
 
 type SimpleBot struct {
 	// list of neigboring bots
 	nl []*actor.PID
-	// list of plugins this bot has
-	plugins map[plgn.PluginIdentifier]interface{}
+	// list of loadedPlugins this bot has
+	loadedPlugins map[plgn.PluginIdentifier]*PluginContract
+	activePlugin  *PluginContract
 	// plugin repository
 	pluginRepoUrl *url.URL
 }
@@ -28,7 +44,8 @@ type SimpleBot struct {
 func NewSimpleBot() *SimpleBot {
 	return &SimpleBot{
 		nl:            make([]*actor.PID, initialNlSize),
-		plugins:       make(map[plgn.PluginIdentifier]interface{}, initialNlSize),
+		loadedPlugins: make(map[plgn.PluginIdentifier]*PluginContract, initialNlSize),
+		activePlugin:  nil,
 		pluginRepoUrl: defaultPluginRepoUrl,
 	}
 }
@@ -41,26 +58,46 @@ func (state *SimpleBot) Nl() []*actor.PID {
 	return state.nl
 }
 
-func (state *SimpleBot) SetPlugins(plugins map[plgn.PluginIdentifier]interface{}) {
-	state.plugins = plugins
+// Set plugin cache
+func (state *SimpleBot) SetPlugins(plugins map[plgn.PluginIdentifier]*PluginContract) {
+	state.loadedPlugins = plugins
 }
 
-func (state *SimpleBot) Plugins() map[plgn.PluginIdentifier]interface{} {
-	return state.plugins
+// Get plugin cache
+func (state *SimpleBot) Plugins() map[plgn.PluginIdentifier]*PluginContract {
+	return state.loadedPlugins
 }
 
+// Set URL to remote repository
 func (state *SimpleBot) SetRemoteRepoUrl(url *url.URL) {
 	state.pluginRepoUrl = url
 }
 
+// Get URL to remote repository
 func (state *SimpleBot) RemoteRepoUrl() *url.URL {
 	return state.pluginRepoUrl
 }
 
-func (state *SimpleBot) init(ctx actor.Context) {
+// Handle *actor.Started message
+func (state *SimpleBot) handleStarted(ctx actor.Context) {
 	logger.Info("initializing bot...", log.PID("pid", ctx.Self()))
-	pluginIdent := plgn.NewPluginIdentifier("Test", "1")
-	plgn, err := state.loadPlugin(*pluginIdent)
+}
+
+// Handle *msg.LoadPlugin message
+func (state *SimpleBot) handleLoadPlugin(ctx actor.Context, pluginIdent *plgn.PluginIdentifier) {
+	// check if plugin is already loaded
+	if plgn, isInMem := state.loadedPlugins[*pluginIdent]; isInMem {
+		// plugin is in memory already --> make it the active plugin
+		state.activePlugin = plgn
+	} else {
+		// plugin is not in memory --> load it
+		state.loadPlugin(ctx, pluginIdent)
+	}
+}
+
+// Load a plugin so new functionality is available
+func (state *SimpleBot) loadPlugin(ctx actor.Context, pluginIdent *plgn.PluginIdentifier) {
+	plgn, err := state.loadPluginFile(*pluginIdent)
 	if err != nil {
 		logger.Info("could not load plugin", log.Error(err), log.PID("pid", ctx.Self()))
 		return
@@ -70,27 +107,43 @@ func (state *SimpleBot) init(ctx actor.Context) {
 		logger.Info("could not load variables/ functions from loaded plugin", log.Error(err), log.PID("pid", ctx.Self()))
 		return
 	}
-	funcs.Receive(state, ctx)
+	state.activePlugin = funcs
+}
+
+// Handle *actor.Stopping message
+func (state *SimpleBot) handleStopping(ctx actor.Context) {
+	logger.Info("shutting down bot...", log.PID("pid", ctx.Self()))
+}
+
+// Handle *actor.Stopped message
+func (state *SimpleBot) handleStopped(ctx actor.Context) {
+	logger.Info("bot shutdown.", log.PID("pid", ctx.Self()))
 }
 
 // Proto.Actor central Receive() method which gets passed all messages sent to the post box of this actor.
 func (state *SimpleBot) Receive(ctx actor.Context) {
-	msg := ctx.Message()
 	logger.Info("received message", log.PID("pid", ctx.Self()))
-	switch msg.(type) {
+	switch mssg := ctx.Message().(type) {
 	case *actor.Started:
-		state.init(ctx)
-	// case *msg.PluginReq:
-	// 	res := state.providePlugin(msg)
-	// case *msg.PluginRes:
+		state.handleStarted(ctx)
+	case *msg.LoadPlugin:
+		state.handleLoadPlugin(ctx, (*plgn.PluginIdentifier)(mssg))
+	case *actor.Stopping:
+		state.handleStopping(ctx)
+	case *actor.Stopped:
+		state.handleStopped(ctx)
 	default:
-		state.Receive(ctx)
+		if state.activePlugin != nil {
+			state.activePlugin.Receive(state, ctx)
+		} else {
+			logger.Info("Tried to invoke a plugin while no plugin was loaded")
+		}
 	}
 
 }
 
-// Load a plugin.
-func (state *SimpleBot) loadPlugin(ident plgn.PluginIdentifier) (*plugin.Plugin, error) {
+// Load a plugin from a plugin file, i. e. a shared object (.so) file either from local file system or from remote repository if it is not found locally.
+func (state *SimpleBot) loadPluginFile(ident plgn.PluginIdentifier) (*plugin.Plugin, error) {
 	// try to load plugin from local filesystem first
 	plgnPath, err := filepath.Abs(path.Join(pathToPluginFiles, ident.PluginName+"_"+ident.PluginVersion+".so"))
 	if err != nil {
@@ -117,6 +170,7 @@ func (state *SimpleBot) loadPlugin(ident plgn.PluginIdentifier) (*plugin.Plugin,
 	return nil, fmt.Errorf("plugin %v could not be found", ident.String())
 }
 
+// Download a plugin file, i. e. a shared object (.so) file from remote repository
 func (state *SimpleBot) downloadPlugin(ident plgn.PluginIdentifier, dest string) error {
 	// create URI for plugin
 	urlPath, err := url.Parse(ident.PluginName + "_" + ident.PluginVersion + ".so")
@@ -158,7 +212,7 @@ func (state *SimpleBot) downloadPlugin(ident plgn.PluginIdentifier, dest string)
 	return nil
 }
 
-// Load plugin from local filesystem.
+// Load plugin, i. e. a shared object (.so) file from local filesystem.
 func (state *SimpleBot) loadFsLocalPlugin(path string) (*plugin.Plugin, error) {
 	pathRune := []rune(path)
 	if len(pathRune) < 4 || string(pathRune[len(pathRune)-3:]) != ".so" {
@@ -174,7 +228,7 @@ func (state *SimpleBot) loadFsLocalPlugin(path string) (*plugin.Plugin, error) {
 	return plugin, nil
 }
 
-// Load all required functions and variables from the plugin.
+// Load all required functions and variables from the plugin file, i. e. a shared object (.so) file.
 func (state *SimpleBot) loadFunctionsAndVariablesFromPlugin(plgn *plugin.Plugin) (*PluginContract, error) {
 	symbolName := "Receive"
 	sym, err := plgn.Lookup(symbolName)

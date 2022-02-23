@@ -1,4 +1,4 @@
-package main
+package bot
 
 // Copyright 2022 Thomas Pilz
 
@@ -14,20 +14,19 @@ package main
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import (
-	"fmt"
+// Peer to peer bot.
+type P2PBot interface {
+	// everything a basic bot has
+	BasicBot
+}
 
-	"github.com/AsynkronIT/protoactor-go/actor"
-	"github.com/Mushroomator/actor-bots/src/bot"
-)
+type P2PBotStruct struct {
+	base *SimpleBot
+}
 
-func main() {
-	system := actor.NewActorSystem()
-
-	rootBootProps := actor.PropsFromProducer(func() actor.Actor {
-		return bot.NewSimpleBot()
-	})
-
-	system.Root.Spawn(rootBootProps)
-	fmt.Scanln()
+// Create a new simple bot
+func NewP2PBotStruct() *P2PBotStruct {
+	return &P2PBotStruct{
+		base: NewSimpleBot(),
+	}
 }
