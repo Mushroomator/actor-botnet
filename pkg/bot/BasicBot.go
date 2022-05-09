@@ -18,9 +18,9 @@ import (
 	"net/url"
 	"plugin"
 
-	"github.com/AsynkronIT/protoactor-go/actor"
-	"github.com/AsynkronIT/protoactor-go/log"
 	"github.com/Mushroomator/actor-bots/pkg/plgn"
+	"github.com/asynkron/protoactor-go/actor"
+	"github.com/asynkron/protoactor-go/log"
 )
 
 const (

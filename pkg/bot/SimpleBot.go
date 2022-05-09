@@ -23,11 +23,11 @@ import (
 	"path/filepath"
 	"plugin"
 
-	"github.com/AsynkronIT/protoactor-go/actor"
-	"github.com/AsynkronIT/protoactor-go/log"
 	"github.com/Mushroomator/actor-bots/pkg/msg"
 	"github.com/Mushroomator/actor-bots/pkg/plgn"
 	"github.com/Mushroomator/actor-bots/pkg/util"
+	"github.com/asynkron/protoactor-go/actor"
+	"github.com/asynkron/protoactor-go/log"
 )
 
 type SimpleBot struct {
