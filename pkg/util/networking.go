@@ -14,7 +14,11 @@ package util
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import "net/http"
+import (
+	"fmt"
+	"net"
+	"net/http"
+)
 
 type HttpResponse struct {
 	Resp *http.Response
@@ -27,4 +31,12 @@ func HttpGetAsync(url string, rc chan HttpResponse) {
 		resp,
 		err,
 	}
+}
+
+func ResolveHostnameToIp(domain string) (net.IP, error) {
+	ips, err := net.LookupIP(domain)
+	if err != nil || len(ips) < 1 {
+		return nil, fmt.Errorf("Could not get IP for %v: %v\n", domain, err)
+	}
+	return ips[0], nil
 }

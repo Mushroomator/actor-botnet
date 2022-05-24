@@ -28,14 +28,18 @@ import (
 	"github.com/Mushroomator/actor-bots/pkg/util"
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/asynkron/protoactor-go/log"
+	"github.com/emirpasic/gods/sets"
+	"github.com/emirpasic/gods/sets/treeset"
+	"github.com/google/uuid"
 )
 
 type SimpleBot struct {
 	// list of neigboring bots
-	nl []*actor.PID
+	peers *actor.PIDSet
 	// list of loadedPlugins this bot has
 	loadedPlugins map[plgn.PluginIdentifier]*PluginContract
-	activePlugin  *PluginContract
+	activePlugins *treeset.Set
+	remotes       sets.Set
 	// plugin repository
 	pluginRepoUrl *url.URL
 }
@@ -43,29 +47,52 @@ type SimpleBot struct {
 // Create a new simple bot
 func NewSimpleBot() *SimpleBot {
 	return &SimpleBot{
-		nl:            make([]*actor.PID, initialNlSize),
+		peers:         actor.NewPIDSet(),
 		loadedPlugins: make(map[plgn.PluginIdentifier]*PluginContract, initialNlSize),
-		activePlugin:  nil,
+		remotes:       treeset.NewWithStringComparator(),
+		activePlugins: treeset.NewWith(plgn.CmpPlugins),
 		pluginRepoUrl: defaultPluginRepoUrl,
 	}
 }
 
-func (state *SimpleBot) SetNl(nl []*actor.PID) {
-	state.nl = nl
+func (state *SimpleBot) AddRemote(host string) {
+	state.remotes.Add(host)
 }
 
-func (state *SimpleBot) Nl() []*actor.PID {
-	return state.nl
+func (state *SimpleBot) RemoveRemote(host string) {
+	state.remotes.Remove(host)
 }
 
-// Set plugin cache
-func (state *SimpleBot) SetPlugins(plugins map[plgn.PluginIdentifier]*PluginContract) {
-	state.loadedPlugins = plugins
+func (state *SimpleBot) SetRemotes(remotes sets.Set) {
+	state.remotes = remotes
 }
 
-// Get plugin cache
-func (state *SimpleBot) Plugins() map[plgn.PluginIdentifier]*PluginContract {
-	return state.loadedPlugins
+func (state *SimpleBot) Remotes() sets.Set {
+	return state.remotes
+}
+
+func (state *SimpleBot) AddPeer(pid *actor.PID) {
+	state.peers.Add(pid)
+}
+
+func (state *SimpleBot) RemovePeer(pid *actor.PID) {
+	state.peers.Remove(pid)
+}
+
+func (state *SimpleBot) SetPeers(peers *actor.PIDSet) {
+	state.peers = peers
+}
+
+func (state *SimpleBot) Peers(pid *actor.PID) *actor.PIDSet {
+	return state.peers
+}
+
+func (state *SimpleBot) AddActivePlugin(plugin *plgn.PluginIdentifier) {
+	state.activePlugins.Add(plugin)
+}
+
+func (state *SimpleBot) RemoveActivePlugin(plugin *plgn.PluginIdentifier) {
+	state.activePlugins.Remove(plugin)
 }
 
 // Set URL to remote repository
@@ -83,31 +110,35 @@ func (state *SimpleBot) handleStarted(ctx actor.Context) {
 	logger.Info("initializing bot...", log.PID("pid", ctx.Self()))
 }
 
-// Handle *msg.LoadPlugin message
-func (state *SimpleBot) handleLoadPlugin(ctx actor.Context, pluginIdent *plgn.PluginIdentifier) {
-	// check if plugin is already loaded
-	if plgn, isInMem := state.loadedPlugins[*pluginIdent]; isInMem {
-		// plugin is in memory already --> make it the active plugin
-		state.activePlugin = plgn
-	} else {
-		// plugin is not in memory --> load it
-		state.loadPlugin(ctx, pluginIdent)
+func (state *SimpleBot) loadPlugin(ident *plgn.PluginIdentifier) error {
+	_, isInMem := state.loadedPlugins[*ident]
+	if !isInMem {
+		// plugin is NOT in memory already --> load it
+		plgnFile, err := state.loadPluginFile(*ident)
+		if err != nil {
+			return fmt.Errorf("could not load plugin %v", ident.String())
+		}
+		loadedPlgn, err := state.loadFunctionsAndVariablesFromPlugin(plgnFile)
+		if err != nil {
+			return fmt.Errorf("could not load variables/ functions from loaded plugin %v", ident.String())
+		}
+		state.loadedPlugins[*ident] = loadedPlgn
 	}
+	return nil
 }
 
-// Load a plugin so new functionality is available
-func (state *SimpleBot) loadPlugin(ctx actor.Context, pluginIdent *plgn.PluginIdentifier) {
-	plgn, err := state.loadPluginFile(*pluginIdent)
+// Handle *msg.LoadPlugin message
+func (state *SimpleBot) handleLoadPlugin(ctx actor.Context, message *msg.LoadPlugin) {
+	// check if plugin is already loaded
+	pluginIdent := plgn.NewPluginIdentifier(message.Name, message.Version)
+	err := state.loadPlugin(pluginIdent)
 	if err != nil {
-		logger.Info("could not load plugin", log.Error(err), log.PID("pid", ctx.Self()))
+		logger.Warn("failed to load plugin", log.PID("pid", ctx.Self()), log.String("plugin", pluginIdent.String()))
 		return
 	}
-	funcs, err := state.loadFunctionsAndVariablesFromPlugin(plgn)
-	if err != nil {
-		logger.Info("could not load variables/ functions from loaded plugin", log.Error(err), log.PID("pid", ctx.Self()))
-		return
-	}
-	state.activePlugin = funcs
+	logger.Info("plugin successfully loaded", log.PID("pid", ctx.Self()), log.String("plugin", pluginIdent.String()))
+	// add plugin to the set of active plugins
+	state.AddActivePlugin(pluginIdent)
 }
 
 // Handle *actor.Stopping message
@@ -126,20 +157,57 @@ func (state *SimpleBot) Receive(ctx actor.Context) {
 	switch mssg := ctx.Message().(type) {
 	case *actor.Started:
 		state.handleStarted(ctx)
-	case *msg.LoadPlugin:
-		state.handleLoadPlugin(ctx, (*plgn.PluginIdentifier)(mssg))
+	case msg.Created:
+		state.handleCreated(ctx, &mssg)
+	case msg.Spawn:
+		state.handleSpawn(ctx, &mssg)
+	case msg.Spawned:
+		state.handleSpawned(ctx, &mssg)
+	case msg.LoadPlugin:
+		state.handleLoadPlugin(ctx, &mssg)
+	case msg.Run:
+		state.handleRun(ctx)
 	case *actor.Stopping:
 		state.handleStopping(ctx)
 	case *actor.Stopped:
 		state.handleStopped(ctx)
 	default:
-		if state.activePlugin != nil {
-			state.activePlugin.Receive(state, ctx)
-		} else {
-			logger.Info("Tried to invoke a plugin while no plugin was loaded")
-		}
+		logger.Warn("Received unknown message")
 	}
 
+}
+
+func (state *SimpleBot) handleCreated(ctx actor.Context, message *msg.Created) {
+	state.SetPeers(actor.NewPIDSet(message.Peers...))
+	state.SetRemotes(treeset.NewWithStringComparator(message.Remotes))
+}
+
+// handle msg.Run message
+// Executes the Receive() message for every active plugin
+func (state *SimpleBot) handleRun(ctx actor.Context) {
+	toBeRemoved := make([]*plgn.PluginIdentifier, 0)
+	// for each plugin execute the Receive method
+	if state.activePlugins.Size() == 0 {
+		logger.Info("Tried to invoke a plugin while no plugin was loaded")
+	}
+	state.activePlugins.Each(func(index int, value interface{}) {
+		plugin := value.(*plgn.PluginIdentifier)
+		if plgn, ok := state.loadedPlugins[*plugin]; ok {
+			// call the plugins Receive() method asynchronously
+			go plgn.Receive(state, ctx)
+		} else {
+			// should not happen, active plugins are automatically loaded plugins
+			// should it happen (for whatever reason), handle the error gracefully and remove the plugin from the active plugins
+			toBeRemoved = append(toBeRemoved, plugin)
+			logger.Warn("Plugin is declared as active plugin but is not loaded in memory. Removed plugin from active plugins.", log.String("plugin", plugin.String()))
+		}
+	})
+	// remove all "dangling" plugins
+	if len(toBeRemoved) > 0 {
+		for _, pluginTbr := range toBeRemoved {
+			state.RemoveActivePlugin(pluginTbr)
+		}
+	}
 }
 
 // Load a plugin from a plugin file, i. e. a shared object (.so) file either from local file system or from remote repository if it is not found locally.
@@ -216,7 +284,7 @@ func (state *SimpleBot) downloadPlugin(ident plgn.PluginIdentifier, dest string)
 func (state *SimpleBot) loadFsLocalPlugin(path string) (*plugin.Plugin, error) {
 	pathRune := []rune(path)
 	if len(pathRune) < 4 || string(pathRune[len(pathRune)-3:]) != ".so" {
-		return nil, fmt.Errorf("invalid file extension %v for local plugin. File extesnion must be \".so\"", path)
+		return nil, fmt.Errorf("invalid file extension %v for local plugin. File extension must be \".so\"", path)
 	}
 	logger.Info("loading plugin from local filesystem", log.String("path", path))
 	plugin, err := plugin.Open(path)
@@ -244,4 +312,43 @@ func (state *SimpleBot) loadFunctionsAndVariablesFromPlugin(plgn *plugin.Plugin)
 		Receive: receive,
 	}
 	return pluginAttr, nil
+}
+
+// Handle request to spawn a new bot.
+// Spawns a new bot at the given host
+// Sends back a message to the sender (if known) with the PID of the spawned bot
+func (state *SimpleBot) handleSpawn(ctx actor.Context, message *msg.Spawn) {
+	pid, err := state.spawnBot(ctx, message.Host)
+	if err != nil {
+		logger.Info("failed to spawn bot.", log.Error(err))
+		return
+	}
+	if ctx.Sender() != nil {
+		ctx.Send(ctx.Sender(), msg.Spawned{Bot: pid})
+	}
+}
+
+// Handle message Spawned. Spawned notifies the receiver that a new bot was spawned and provides the PID of the newly created bot
+// Add the newly created bot to peers
+func (state *SimpleBot) handleSpawned(ctx actor.Context, message *msg.Spawned) {
+	state.AddPeer(message.Bot)
+}
+
+// Spawns a new bot on the given remote host
+func (state *SimpleBot) spawnBot(ctx actor.Context, host string) (*actor.PID, error) {
+	ip, err := util.ResolveHostnameToIp(host)
+	if err != nil {
+		return nil, fmt.Errorf("remote host %v could be resolved. No bot spawned!", host)
+	}
+	// add remote location
+	state.AddRemote(ip.String())
+	// create a PID for a new peer
+	pid := actor.NewPID(host, uuid.NewString())
+	// send new bot a created message providing it with the peers of this bot (exlcuding the newly created bot) and the remotes
+	ctx.Send(pid, msg.Created{
+		Remotes: util.CastInterfaceSliceToStringSlice(state.remotes.Values()),
+		Peers:   state.peers.Values(),
+	})
+	state.AddPeer(pid)
+	return pid, nil
 }

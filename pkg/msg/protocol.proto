@@ -1,0 +1,24 @@
+syntax = "proto3";
+package messages;
+option go_package = "github.com/Mushroomator/actor-bots/msg";
+import "actor/actor.proto";
+
+message Created {
+    repeated string remotes = 1;
+    repeated actor.PID peers = 2;
+}
+
+message LoadPlugin {
+    string Name = 1;
+    string Version = 2;
+}
+
+message Run{}
+
+message Spawn {
+    string Host = 1;
+}
+
+message Spawned {
+    actor.PID Bot = 1;
+}

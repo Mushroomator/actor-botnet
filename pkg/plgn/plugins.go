@@ -23,6 +23,25 @@ type PluginIdentifier struct {
 	PluginVersion string
 }
 
+// comparator for plugins
+func CmpPlugins(this, other interface{}) int {
+	p1 := this.(*PluginIdentifier)
+	p2 := this.(*PluginIdentifier)
+
+	switch {
+	case p1.PluginName > p2.PluginName:
+		return 1
+	case p1.PluginName < p2.PluginName:
+		return -1
+	case p1.PluginVersion > p2.PluginVersion:
+		return 1
+	case p1.PluginVersion < p2.PluginVersion:
+		return -1
+	default:
+		return 0
+	}
+}
+
 func (plugin *PluginIdentifier) String() string {
 	return fmt.Sprintf("%v (v%v)", plugin.PluginName, plugin.PluginVersion)
 }

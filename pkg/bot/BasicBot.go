@@ -42,25 +42,48 @@ type PluginContract struct {
 	Receive func(bot *SimpleBot, ctx actor.Context)
 }
 
-// Basic bot
-type BasicBot interface {
-	// getter and setter
-	// list of neighboring bots
-	SetNl(nl []*actor.PID)
-	Nl() []*actor.PID
-	// list of plugins
-	SetPlugins(plugins map[plgn.PluginIdentifier]interface{})
-	Plugins() map[plgn.PluginIdentifier]interface{}
-	// a bot is an actor so it must have a Receive method
-	Receive(ctx actor.Context)
-	// initialize the bot
-	handleStarted()
-	handleStopped()
-	handleStopping()
+type Remotable interface {
+	// Adds a remote location
+	AddRemote(host string)
+	// Remove a remote location
+	RemoveRemote(host string)
+}
+
+type Pluggable interface {
+	// ability to add a pluging to add an active plugin
+	AddActivePlugin(plugin *plgn.PluginIdentifier)
+	// ability to remove an active plugin
+	RemoveActivePlugin(plugin *plgn.PluginIdentifier)
+	// ability to spawn a bot
+	spawnBot()
 	// ability to load a plugin
-	loadPlugin(ident plgn.PluginIdentifier) (*plugin.Plugin, error)
+	loadPlugin(ident *plgn.PluginIdentifier) (*plugin.Plugin, error)
 	// load a plugin from the filesystem
 	loadFsLocalPlugin(path string) (*plugin.Plugin, error)
 	// load required functions and variables from plugin
 	loadFunctionsAndVariablesFromPlugin(plgn plugin.Plugin) (*PluginContract, error)
+	// method to handle calls to run plugins
+	handleRun(ctx actor.Context)
+}
+
+// Basic bot
+type BasicBot interface {
+	// getter and setter
+	// list of neighboring bots
+	AddPeer(pid *actor.PID)
+	RemovePeer(pid *actor.PID)
+	// a bot that is capable of spawning remote actors
+	Remotable
+	// ability to plug in functionality
+	Pluggable
+	// a bot is an actor so it must have a Receive method
+	Receive(ctx actor.Context)
+	// lifecycle methods
+	handleStarted()
+	handleStopped()
+	handleStopping()
+	// ability to spawn bots
+	handleSpawn(ctx actor.Context)
+	// handle notification that a bot was spawned
+	handleSpawned(ctx actor.Context)
 }
