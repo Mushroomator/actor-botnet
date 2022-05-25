@@ -21,3 +21,7 @@ func CastInterfaceSliceToStringSlice(input []interface{}) []string {
 	}
 	return cast
 }
+
+func CastToInterfaceSlice(slice ...interface{}) []interface{} {
+	return slice
+}

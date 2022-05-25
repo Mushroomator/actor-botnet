@@ -56,11 +56,15 @@ func NewSimpleBot() *SimpleBot {
 }
 
 func (state *SimpleBot) AddRemote(host ...string) {
-	state.remotes.Add(host)
+	for _, remote := range host {
+		state.remotes.Add(remote)
+	}
 }
 
 func (state *SimpleBot) RemoveRemote(host ...string) {
-	state.remotes.Remove(host)
+	for _, remote := range host {
+		state.remotes.Remove(remote)
+	}
 }
 
 func (state *SimpleBot) SetRemotes(remotes sets.Set) {
