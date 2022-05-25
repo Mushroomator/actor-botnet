@@ -1,4 +1,4 @@
-module github.com/Mushroomator/actor-bots
+module github.com/Mushroomator/actor-bots-golang-plugins
 
 go 1.18
 
