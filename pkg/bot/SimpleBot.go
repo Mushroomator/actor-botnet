@@ -55,11 +55,11 @@ func NewSimpleBot() *SimpleBot {
 	}
 }
 
-func (state *SimpleBot) AddRemote(host string) {
+func (state *SimpleBot) AddRemote(host ...string) {
 	state.remotes.Add(host)
 }
 
-func (state *SimpleBot) RemoveRemote(host string) {
+func (state *SimpleBot) RemoveRemote(host ...string) {
 	state.remotes.Remove(host)
 }
 
@@ -71,12 +71,20 @@ func (state *SimpleBot) Remotes() sets.Set {
 	return state.remotes
 }
 
-func (state *SimpleBot) AddPeer(pid *actor.PID) {
-	state.peers.Add(pid)
+func (state *SimpleBot) AddPeer(pid ...*actor.PID) {
+	for _, peer := range pid {
+		if peer != nil {
+			state.peers.Add(peer)
+		}
+	}
 }
 
-func (state *SimpleBot) RemovePeer(pid *actor.PID) {
-	state.peers.Remove(pid)
+func (state *SimpleBot) RemovePeer(pid ...*actor.PID) {
+	for _, peer := range pid {
+		if peer != nil {
+			state.peers.Remove(peer)
+		}
+	}
 }
 
 func (state *SimpleBot) SetPeers(peers *actor.PIDSet) {
@@ -178,8 +186,8 @@ func (state *SimpleBot) Receive(ctx actor.Context) {
 }
 
 func (state *SimpleBot) handleCreated(ctx actor.Context, message *msg.Created) {
-	state.SetPeers(actor.NewPIDSet(message.Peers...))
-	state.SetRemotes(treeset.NewWithStringComparator(message.Remotes))
+	state.AddPeer(message.Peers...)
+	state.AddRemote(message.Remotes...)
 }
 
 // handle msg.Run message

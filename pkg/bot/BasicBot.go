@@ -44,9 +44,9 @@ type PluginContract struct {
 
 type Remotable interface {
 	// Adds a remote location
-	AddRemote(host string)
+	AddRemote(host ...string)
 	// Remove a remote location
-	RemoveRemote(host string)
+	RemoveRemote(host ...string)
 }
 
 type Pluggable interface {
@@ -70,8 +70,8 @@ type Pluggable interface {
 type BasicBot interface {
 	// getter and setter
 	// list of neighboring bots
-	AddPeer(pid *actor.PID)
-	RemovePeer(pid *actor.PID)
+	AddPeer(pid ...*actor.PID)
+	RemovePeer(pid ...*actor.PID)
 	// a bot that is capable of spawning remote actors
 	Remotable
 	// ability to plug in functionality
