@@ -23,9 +23,9 @@ import (
 	"path/filepath"
 	"plugin"
 
-	"github.com/Mushroomator/actor-bots/pkg/msg"
-	"github.com/Mushroomator/actor-bots/pkg/plgn"
-	"github.com/Mushroomator/actor-bots/pkg/util"
+	"github.com/Mushroomator/actor-bots-golang-plugins/pkg/msg"
+	"github.com/Mushroomator/actor-bots-golang-plugins/pkg/plgn"
+	"github.com/Mushroomator/actor-bots-golang-plugins/pkg/util"
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/asynkron/protoactor-go/log"
 	"github.com/emirpasic/gods/sets"
