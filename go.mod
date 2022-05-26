@@ -5,7 +5,6 @@ go 1.18
 require (
 	github.com/asynkron/protoactor-go v0.0.0-20220508141221-685ce4205646
 	github.com/emirpasic/gods v1.18.1
-	github.com/google/uuid v1.3.0
 	google.golang.org/protobuf v1.27.1
 )
 
@@ -16,6 +15,7 @@ require (
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/google/uuid v1.3.0 // indirect
 	github.com/lithammer/shortuuid/v4 v4.0.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
 	github.com/orcaman/concurrent-map v0.0.0-20190107190726-7ed82d9cb717 // indirect

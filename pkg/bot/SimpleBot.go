@@ -32,7 +32,6 @@ import (
 	"github.com/asynkron/protoactor-go/log"
 	"github.com/emirpasic/gods/sets"
 	"github.com/emirpasic/gods/sets/treeset"
-	"github.com/google/uuid"
 )
 
 type SimpleBot struct {
@@ -249,19 +248,19 @@ func (state *SimpleBot) Receive(ctx actor.Context) {
 	switch mssg := message.(type) {
 	case *actor.Started:
 		state.handleStarted(ctx)
-	case msg.Created:
-		state.handleCreated(ctx, &mssg)
-	case msg.Spawn:
-		state.handleSpawn(ctx, &mssg)
-	case msg.Spawned:
-		state.handleSpawned(ctx, &mssg)
-	case msg.LoadPlugin:
-		state.handleLoadPlugin(ctx, &mssg)
-	case msg.Subscribe:
-		state.handleSubscribe(ctx, &mssg)
-	case msg.Unsubscribe:
-		state.handleUnsubscribe(ctx, &mssg)
-	case msg.Run:
+	case *msg.Created:
+		state.handleCreated(ctx, mssg)
+	case *msg.Spawn:
+		state.handleSpawn(ctx, mssg)
+	case *msg.Spawned:
+		state.handleSpawned(ctx, mssg)
+	case *msg.LoadPlugin:
+		state.handleLoadPlugin(ctx, mssg)
+	case *msg.Subscribe:
+		state.handleSubscribe(ctx, mssg)
+	case *msg.Unsubscribe:
+		state.handleUnsubscribe(ctx, mssg)
+	case *msg.Run:
 		state.handleRun(ctx)
 	case *actor.Stopping:
 		state.handleStopping(ctx)
@@ -462,7 +461,7 @@ func (state *SimpleBot) spawnBot(ctx actor.Context, host string, port int) (*act
 		}
 	}
 	// create a PID for a new peer
-	pid := actor.NewPID(fmt.Sprintf("%v:%v", ip.String(), port), uuid.NewString())
+	pid := actor.NewPID(fmt.Sprintf("%v:%v", ip.String(), port), "bot")
 	// send new bot a created message providing it with the peers of this bot (exlcuding the newly created bot) and the remotes
 	remotes := util.CastArray(state.remotes.Values(), func(input interface{}) *msg.RemoteAddress {
 		remote := input.(*Remote)
