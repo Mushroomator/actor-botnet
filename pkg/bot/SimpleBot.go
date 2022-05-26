@@ -465,10 +465,10 @@ func (state *SimpleBot) spawnBot(ctx actor.Context, host string, port int) (*act
 	pid := actor.NewPID(fmt.Sprintf("%v:%v", ip.String(), port), uuid.NewString())
 	// send new bot a created message providing it with the peers of this bot (exlcuding the newly created bot) and the remotes
 	remotes := util.CastArray(state.remotes.Values(), func(input interface{}) *msg.RemoteAddress {
-		remote := input.(*msg.RemoteAddress)
+		remote := input.(*Remote)
 		return &msg.RemoteAddress{
-			Hostname: remote.Hostname,
-			Port:     remote.Port,
+			Hostname: remote.Host,
+			Port:     int32(remote.Port),
 		}
 	})
 	ctx.Send(pid, msg.Created{
