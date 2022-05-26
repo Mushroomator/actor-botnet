@@ -27,7 +27,7 @@ import (
 const (
 	initialNlSize     = 11
 	initialModuleSize = 11
-	pathToPluginFiles = "../plugins"
+	pathToPluginFiles = "./plugins"
 )
 
 var (

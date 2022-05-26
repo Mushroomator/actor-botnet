@@ -221,6 +221,14 @@ func (state *SimpleBot) handleLoadPlugin(ctx actor.Context, message *msg.LoadPlu
 // Handle *actor.Stopping message
 func (state *SimpleBot) handleStopping(ctx actor.Context) {
 	logger.Info("shutting down bot...", log.PID("pid", ctx.Self()))
+	state.cleanup()
+}
+
+func (state *SimpleBot) cleanup() {
+	err := os.RemoveAll(pathToPluginFiles)
+	if err != nil {
+		logger.Error("Failed to remove plugin files", log.Error(err), log.String("pluginDir", pathToPluginFiles))
+	}
 }
 
 // Handle *actor.Stopped message
@@ -230,8 +238,13 @@ func (state *SimpleBot) handleStopped(ctx actor.Context) {
 
 // Proto.Actor central Receive() method which gets passed all messages sent to the post box of this actor.
 func (state *SimpleBot) Receive(ctx actor.Context) {
+	// log type of message that was received
 	message := ctx.Message()
 	logger.Info("received message", log.PID("receiverActor", ctx.Self()), log.String("messageType", reflect.TypeOf(message).String()))
+	// add the sender to the list of peers, it sender is specified and not the actor itself
+	if sender := ctx.Sender(); sender != nil && sender != ctx.Self() {
+		state.AddPeer(sender)
+	}
 	switch mssg := message.(type) {
 	case *actor.Started:
 		state.handleStarted(ctx)
