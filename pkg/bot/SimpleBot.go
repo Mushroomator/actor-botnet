@@ -22,6 +22,7 @@ import (
 	"path"
 	"path/filepath"
 	"plugin"
+	"reflect"
 
 	"github.com/Mushroomator/actor-bots-golang-plugins/pkg/msg"
 	"github.com/Mushroomator/actor-bots-golang-plugins/pkg/plgn"
@@ -40,19 +41,79 @@ type SimpleBot struct {
 	loadedPlugins map[plgn.PluginIdentifier]*PluginContract
 	activePlugins *treeset.Set
 	remotes       sets.Set
+	messageTypes  map[string]msg.MessageType
+	subscribers   map[msg.MessageType]*actor.PIDSet
 	// plugin repository
 	pluginRepoUrl *url.URL
 }
 
 // Create a new simple bot
 func NewSimpleBot() *SimpleBot {
+	initSubsribers := func(msgTypes []msg.MessageType) map[msg.MessageType]*actor.PIDSet {
+		subscribers := map[msg.MessageType]*actor.PIDSet{}
+		for _, msgType := range msgTypes {
+			subscribers[msgType] = actor.NewPIDSet()
+		}
+		return subscribers
+	}
+	supportedMsgTypes := map[string]msg.MessageType{
+		reflect.TypeOf(msg.MessageType_CREATED).String():     msg.MessageType_CREATED,
+		reflect.TypeOf(msg.MessageType_SPAWN).String():       msg.MessageType_SPAWN,
+		reflect.TypeOf(msg.MessageType_SPAWNED).String():     msg.MessageType_SPAWNED,
+		reflect.TypeOf(msg.MessageType_RUN).String():         msg.MessageType_RUN,
+		reflect.TypeOf(msg.MessageType_SUBSCRIBE).String():   msg.MessageType_SUBSCRIBE,
+		reflect.TypeOf(msg.MessageType_UNSUBSCRIBE).String(): msg.MessageType_UNSUBSCRIBE,
+		reflect.TypeOf(msg.MessageType_LOAD_PLUGIN).String(): msg.MessageType_LOAD_PLUGIN,
+		reflect.TypeOf(msg.MessageType_NOTIFY).String():      msg.MessageType_NOTIFY,
+	}
+
 	return &SimpleBot{
 		peers:         actor.NewPIDSet(),
 		loadedPlugins: make(map[plgn.PluginIdentifier]*PluginContract, initialNlSize),
 		remotes:       treeset.NewWithStringComparator(),
 		activePlugins: treeset.NewWith(plgn.CmpPlugins),
+		messageTypes:  supportedMsgTypes,
+		subscribers:   initSubsribers(util.Values(&supportedMsgTypes)),
 		pluginRepoUrl: defaultPluginRepoUrl,
 	}
+}
+
+// Adds a new subscriber to for a certain messaget type
+// If no message type is specified, a subscription for all messages is created
+func (state *SimpleBot) AddSubscriber(subscriber *actor.PID, messageTypes ...msg.MessageType) {
+	if subscriber != nil {
+		if len(messageTypes) == 0 {
+			messageTypes = util.Values(&state.messageTypes)
+		}
+		for _, msgTypes := range messageTypes {
+			state.subscribers[msgTypes].Add(subscriber)
+		}
+	}
+}
+
+// Removes a new subscriber from a certain message type
+// If no message type is specified, all subscriptions are removed
+func (state *SimpleBot) RemoveSubscriber(unsubscriber *actor.PID, messageTypes ...msg.MessageType) {
+	if unsubscriber != nil {
+		if len(messageTypes) == 0 {
+			messageTypes = util.Values(&state.messageTypes)
+		}
+		for _, msgTypes := range messageTypes {
+			state.subscribers[msgTypes].Add(unsubscriber)
+		}
+	}
+}
+
+func (state *SimpleBot) notifySubscribers(ctx actor.Context, message interface{}) {
+	msgType, ok := state.messageTypes[reflect.TypeOf(message).String()]
+	// if not "ok", message type is unknown and we don't have any subscribers
+	if ok {
+		subscribers := state.subscribers[msgType]
+		subscribers.ForEach(func(i int, pid *actor.PID) {
+			ctx.Send(pid, msg.Notify{Source: ctx.Self(), MessageType: msgType})
+		})
+	}
+
 }
 
 func (state *SimpleBot) AddRemote(host ...string) {
@@ -142,7 +203,7 @@ func (state *SimpleBot) loadPlugin(ident *plgn.PluginIdentifier) error {
 // Handle *msg.LoadPlugin message
 func (state *SimpleBot) handleLoadPlugin(ctx actor.Context, message *msg.LoadPlugin) {
 	// check if plugin is already loaded
-	pluginIdent := plgn.NewPluginIdentifier(message.Name, message.Version)
+	pluginIdent := plgn.NewPluginIdentifier(message.Plugin.Name, message.Plugin.Version)
 	err := state.loadPlugin(pluginIdent)
 	if err != nil {
 		logger.Warn("failed to load plugin", log.PID("pid", ctx.Self()), log.String("plugin", pluginIdent.String()))
@@ -151,6 +212,10 @@ func (state *SimpleBot) handleLoadPlugin(ctx actor.Context, message *msg.LoadPlu
 	logger.Info("plugin successfully loaded", log.PID("pid", ctx.Self()), log.String("plugin", pluginIdent.String()))
 	// add plugin to the set of active plugins
 	state.AddActivePlugin(pluginIdent)
+	if message.RunAfterLoad {
+		// send ourself a run message
+		ctx.Send(ctx.Self(), msg.Run{})
+	}
 }
 
 // Handle *actor.Stopping message
@@ -165,7 +230,7 @@ func (state *SimpleBot) handleStopped(ctx actor.Context) {
 
 // Proto.Actor central Receive() method which gets passed all messages sent to the post box of this actor.
 func (state *SimpleBot) Receive(ctx actor.Context) {
-	logger.Info("received message", log.PID("pid", ctx.Self()))
+	logger.Info("received message", log.PID("receiverActor", ctx.Self()))
 	switch mssg := ctx.Message().(type) {
 	case *actor.Started:
 		state.handleStarted(ctx)
@@ -177,6 +242,10 @@ func (state *SimpleBot) Receive(ctx actor.Context) {
 		state.handleSpawned(ctx, &mssg)
 	case msg.LoadPlugin:
 		state.handleLoadPlugin(ctx, &mssg)
+	case msg.Subscribe:
+		state.handleSubscribe(ctx, &mssg)
+	case msg.Unsubscribe:
+		state.handleUnsubscribe(ctx, &mssg)
 	case msg.Run:
 		state.handleRun(ctx)
 	case *actor.Stopping:
@@ -187,6 +256,14 @@ func (state *SimpleBot) Receive(ctx actor.Context) {
 		logger.Warn("Received unknown message")
 	}
 
+}
+
+func (state *SimpleBot) handleSubscribe(ctx actor.Context, message *msg.Subscribe) {
+	state.AddSubscriber(message.Subscriber, message.MessageTypes...)
+}
+
+func (state *SimpleBot) handleUnsubscribe(ctx actor.Context, message *msg.Unsubscribe) {
+	state.RemoveSubscriber(message.Unsubscriber, message.MessageTypes...)
 }
 
 func (state *SimpleBot) handleCreated(ctx actor.Context, message *msg.Created) {

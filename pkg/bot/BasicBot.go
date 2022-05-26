@@ -18,6 +18,7 @@ import (
 	"net/url"
 	"plugin"
 
+	"github.com/Mushroomator/actor-bots-golang-plugins/pkg/msg"
 	"github.com/Mushroomator/actor-bots-golang-plugins/pkg/plgn"
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/asynkron/protoactor-go/log"
@@ -66,6 +67,12 @@ type Pluggable interface {
 	handleRun(ctx actor.Context)
 }
 
+type Subscribable interface {
+	notifySubscribers(ctx actor.Context, message interface{})
+	handleSubscribe(ctx actor.Context, message *msg.Subscribe)
+	handleUnsubscribe(ctx actor.Context, message *msg.Unsubscribe)
+}
+
 // Basic bot
 type BasicBot interface {
 	// getter and setter
@@ -76,6 +83,8 @@ type BasicBot interface {
 	Remotable
 	// ability to plug in functionality
 	Pluggable
+	// ability to subscribe/ unsubscribe to messages
+	Subscribable
 	// a bot is an actor so it must have a Receive method
 	Receive(ctx actor.Context)
 	// lifecycle methods

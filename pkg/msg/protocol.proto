@@ -3,17 +3,13 @@ package messages;
 option go_package = "github.com/Mushroomator/actor-bots-golang-plugins/msg";
 import "actor/actor.proto";
 
+/*
+* Protocol message
+*/
 message Created {
     repeated string remotes = 1;
     repeated actor.PID peers = 2;
 }
-
-message LoadPlugin {
-    string Name = 1;
-    string Version = 2;
-}
-
-message Run{}
 
 message Spawn {
     string Host = 1;
@@ -21,4 +17,47 @@ message Spawn {
 
 message Spawned {
     actor.PID Bot = 1;
+}
+
+message LoadPlugin {
+    PluginIdentifier plugin = 1;
+    bool RunAfterLoad = 2;
+}
+
+message Run{}
+
+
+message Subscribe {
+    actor.PID Subscriber = 1;
+    repeated MessageType MessageTypes = 2;
+}
+
+message Unsubscribe {
+    actor.PID Unsubscriber = 1;
+    repeated MessageType MessageTypes = 2;
+}
+
+message Notify {
+    actor.PID Source = 1;
+    MessageType MessageType = 2; 
+}
+
+
+/*
+* Models
+*/
+message PluginIdentifier {
+    string Name = 1;
+    string Version = 2;
+}
+
+enum MessageType {
+    CREATED = 0;
+    SPAWN = 1;
+    SPAWNED = 2;
+    RUN = 3;
+    SUBSCRIBE = 4;
+    UNSUBSCRIBE = 5;
+    LOAD_PLUGIN = 6;
+    NOTIFY = 7; 
 }
