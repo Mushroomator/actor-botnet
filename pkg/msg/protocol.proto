@@ -20,7 +20,7 @@ message Spawned {
 }
 
 message LoadPlugin {
-    PluginIdentifier plugin = 1;
+    PluginIdentifier Plugin = 1;
     bool RunAfterLoad = 2;
 }
 

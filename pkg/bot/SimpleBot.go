@@ -110,7 +110,7 @@ func (state *SimpleBot) notifySubscribers(ctx actor.Context, message interface{}
 	if ok {
 		subscribers := state.subscribers[msgType]
 		subscribers.ForEach(func(i int, pid *actor.PID) {
-			ctx.Send(pid, msg.Notify{Source: ctx.Self(), MessageType: msgType})
+			ctx.Send(pid, msg.NewNotify(ctx.Self(), msgType))
 		})
 	}
 
@@ -214,7 +214,7 @@ func (state *SimpleBot) handleLoadPlugin(ctx actor.Context, message *msg.LoadPlu
 	state.AddActivePlugin(pluginIdent)
 	if message.RunAfterLoad {
 		// send ourself a run message
-		ctx.Send(ctx.Self(), msg.Run{})
+		ctx.Send(ctx.Self(), msg.NewRun())
 	}
 }
 
@@ -434,7 +434,7 @@ func (state *SimpleBot) handleSpawn(ctx actor.Context, message *msg.Spawn) {
 		return
 	}
 	if ctx.Sender() != nil {
-		ctx.Send(ctx.Sender(), msg.Spawned{Bot: pid})
+		ctx.Send(ctx.Sender(), msg.NewSpawned(pid))
 	}
 }
 
@@ -465,15 +465,9 @@ func (state *SimpleBot) spawnBot(ctx actor.Context, host string, port int) (*act
 	// send new bot a created message providing it with the peers of this bot (exlcuding the newly created bot) and the remotes
 	remotes := util.CastArray(state.remotes.Values(), func(input interface{}) *msg.RemoteAddress {
 		remote := input.(*Remote)
-		return &msg.RemoteAddress{
-			Hostname: remote.Host,
-			Port:     int32(remote.Port),
-		}
+		return msg.NewRemoteAddress(remote.Host, remote.Port)
 	})
-	ctx.Send(pid, msg.Created{
-		Remotes: remotes,
-		Peers:   state.peers.Values(),
-	})
+	ctx.Send(pid, msg.NewCreated(remotes, state.peers.Values()))
 	state.AddPeer(pid)
 	return pid, nil
 }
