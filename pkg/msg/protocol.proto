@@ -7,12 +7,12 @@ import "actor/actor.proto";
 * Protocol message
 */
 message Created {
-    repeated string remotes = 1;
+    repeated RemoteAddress remotes = 1;
     repeated actor.PID peers = 2;
 }
 
 message Spawn {
-    string Host = 1;
+    RemoteAddress Host = 1;
 }
 
 message Spawned {
@@ -46,6 +46,11 @@ message Notify {
 /*
 * Models
 */
+message RemoteAddress {
+    string Hostname = 1;
+    int32 Port = 2;
+}
+
 message PluginIdentifier {
     string Name = 1;
     string Version = 2;

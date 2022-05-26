@@ -17,6 +17,7 @@ package bot
 import (
 	"fmt"
 	"io"
+	"net"
 	"net/url"
 	"os"
 	"path"
@@ -70,7 +71,7 @@ func NewSimpleBot() *SimpleBot {
 	return &SimpleBot{
 		peers:         actor.NewPIDSet(),
 		loadedPlugins: make(map[plgn.PluginIdentifier]*PluginContract, initialNlSize),
-		remotes:       treeset.NewWithStringComparator(),
+		remotes:       treeset.NewWith(CmpRemote),
 		activePlugins: treeset.NewWith(plgn.CmpPlugins),
 		messageTypes:  supportedMsgTypes,
 		subscribers:   initSubsribers(util.Values(&supportedMsgTypes)),
@@ -116,13 +117,13 @@ func (state *SimpleBot) notifySubscribers(ctx actor.Context, message interface{}
 
 }
 
-func (state *SimpleBot) AddRemote(host ...string) {
+func (state *SimpleBot) AddRemote(host ...*Remote) {
 	for _, remote := range host {
 		state.remotes.Add(remote)
 	}
 }
 
-func (state *SimpleBot) RemoveRemote(host ...string) {
+func (state *SimpleBot) RemoveRemote(host ...*Remote) {
 	for _, remote := range host {
 		state.remotes.Remove(remote)
 	}
@@ -282,8 +283,14 @@ func (state *SimpleBot) handleUnsubscribe(ctx actor.Context, message *msg.Unsubs
 }
 
 func (state *SimpleBot) handleCreated(ctx actor.Context, message *msg.Created) {
+	remotes := util.CastArray(message.Remotes, func(input *msg.RemoteAddress) *Remote {
+		return &Remote{
+			Host: input.Hostname,
+			Port: int(input.Port),
+		}
+	})
 	state.AddPeer(message.Peers...)
-	state.AddRemote(message.Remotes...)
+	state.AddRemote(remotes...)
 }
 
 // handle msg.Run message
@@ -326,7 +333,7 @@ func (state *SimpleBot) loadPluginFile(ident plgn.PluginIdentifier) (*plugin.Plu
 	if lfsErr == nil {
 		return lfsPlgn, nil
 	}
-	logger.Info("Plugin not found locally. Trying to download from remote repository.")
+	logger.Info("plugin not found locally. Trying to download from remote repository.")
 	// plugin could not be loaded from local file system (does not exist/ wrong permissions) in local filesystem
 	// try downloading it from remote repo or peers
 	remErr := state.downloadPlugin(ident, plgnPath)
@@ -422,7 +429,7 @@ func (state *SimpleBot) loadFunctionsAndVariablesFromPlugin(plgn *plugin.Plugin)
 // Spawns a new bot at the given host
 // Sends back a message to the sender (if known) with the PID of the spawned bot
 func (state *SimpleBot) handleSpawn(ctx actor.Context, message *msg.Spawn) {
-	pid, err := state.spawnBot(ctx, message.Host)
+	pid, err := state.spawnBot(ctx, message.Host.Hostname, int(message.Host.Port))
 	if err != nil {
 		logger.Info("failed to spawn bot.", log.Error(err))
 		return
@@ -439,18 +446,33 @@ func (state *SimpleBot) handleSpawned(ctx actor.Context, message *msg.Spawned) {
 }
 
 // Spawns a new bot on the given remote host
-func (state *SimpleBot) spawnBot(ctx actor.Context, host string) (*actor.PID, error) {
-	ip, err := util.ResolveHostnameToIp(host)
-	if err != nil {
-		return nil, fmt.Errorf("remote host %v could be resolved. No bot spawned!", host)
-	}
+func (state *SimpleBot) spawnBot(ctx actor.Context, host string, port int) (*actor.PID, error) {
 	// add remote location
-	state.AddRemote(ip.String())
+	state.AddRemote(&Remote{Host: host, Port: port})
+	// proto.actor does not properly deal with domains so make sure we have an IP address
+	ip := net.ParseIP(host)
+	if ip == nil {
+		// ParseIP returns nil if the it is no valid IP
+		// try to resolve an IP for the given domain
+		var err error
+		ip, err = util.ResolveHostnameToIp(host)
+		if err != nil {
+			logger.Warn("failed to resolve hostname", log.String("host", host), log.Error(err))
+			return nil, fmt.Errorf("remote host %v could not be resolved. No bot spawned!", host)
+		}
+	}
 	// create a PID for a new peer
-	pid := actor.NewPID(host, uuid.NewString())
+	pid := actor.NewPID(fmt.Sprintf("%v:%v", ip.String(), port), uuid.NewString())
 	// send new bot a created message providing it with the peers of this bot (exlcuding the newly created bot) and the remotes
+	remotes := util.CastArray(state.remotes.Values(), func(input interface{}) *msg.RemoteAddress {
+		remote := input.(*msg.RemoteAddress)
+		return &msg.RemoteAddress{
+			Hostname: remote.Hostname,
+			Port:     remote.Port,
+		}
+	})
 	ctx.Send(pid, msg.Created{
-		Remotes: util.CastInterfaceSliceToStringSlice(state.remotes.Values()),
+		Remotes: remotes,
 		Peers:   state.peers.Values(),
 	})
 	state.AddPeer(pid)

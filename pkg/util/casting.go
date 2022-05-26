@@ -14,14 +14,10 @@ package util
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-func CastInterfaceSliceToStringSlice(input []interface{}) []string {
-	cast := make([]string, len(input))
+func CastArray[I any, O any](input []I, converter func(input I) O) []O {
+	cast := make([]O, len(input))
 	for i := range input {
-		cast[i] = input[i].(string)
+		cast[i] = converter(input[i])
 	}
 	return cast
-}
-
-func CastToInterfaceSlice(slice ...interface{}) []interface{} {
-	return slice
 }

@@ -15,8 +15,10 @@ package bot
 // limitations under the License.
 
 import (
+	"fmt"
 	"net/url"
 	"plugin"
+	"strings"
 
 	"github.com/Mushroomator/actor-bots-golang-plugins/pkg/msg"
 	"github.com/Mushroomator/actor-bots-golang-plugins/pkg/plgn"
@@ -95,4 +97,19 @@ type BasicBot interface {
 	handleSpawn(ctx actor.Context)
 	// handle notification that a bot was spawned
 	handleSpawned(ctx actor.Context)
+}
+
+type Remote struct {
+	Host string
+	Port int
+}
+
+// comparator for plugins
+func CmpRemote(this, other interface{}) int {
+	p1 := this.(*Remote)
+	p2 := this.(*Remote)
+
+	remote1 := fmt.Sprintf("%v:%v", p1.Host, p1.Port)
+	remote2 := fmt.Sprintf("%v:%v", p2.Host, p2.Port)
+	return strings.Compare(remote1, remote2)
 }
