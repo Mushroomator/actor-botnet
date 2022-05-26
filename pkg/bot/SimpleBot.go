@@ -254,8 +254,9 @@ func (state *SimpleBot) Receive(ctx actor.Context) {
 		state.handleStopped(ctx)
 	default:
 		logger.Warn("Received unknown message")
+		return
 	}
-
+	state.notifySubscribers(ctx, ctx.Message())
 }
 
 func (state *SimpleBot) handleSubscribe(ctx actor.Context, message *msg.Subscribe) {
