@@ -57,14 +57,14 @@ func NewSimpleBot() *SimpleBot {
 		return subscribers
 	}
 	supportedMsgTypes := map[string]msg.MessageType{
-		reflect.TypeOf(msg.MessageType_CREATED).String():     msg.MessageType_CREATED,
-		reflect.TypeOf(msg.MessageType_SPAWN).String():       msg.MessageType_SPAWN,
-		reflect.TypeOf(msg.MessageType_SPAWNED).String():     msg.MessageType_SPAWNED,
-		reflect.TypeOf(msg.MessageType_RUN).String():         msg.MessageType_RUN,
-		reflect.TypeOf(msg.MessageType_SUBSCRIBE).String():   msg.MessageType_SUBSCRIBE,
-		reflect.TypeOf(msg.MessageType_UNSUBSCRIBE).String(): msg.MessageType_UNSUBSCRIBE,
-		reflect.TypeOf(msg.MessageType_LOAD_PLUGIN).String(): msg.MessageType_LOAD_PLUGIN,
-		reflect.TypeOf(msg.MessageType_NOTIFY).String():      msg.MessageType_NOTIFY,
+		reflect.TypeOf(msg.Created{}).String():     msg.MessageType_CREATED,
+		reflect.TypeOf(msg.Spawn{}).String():       msg.MessageType_SPAWN,
+		reflect.TypeOf(msg.Spawned{}).String():     msg.MessageType_SPAWNED,
+		reflect.TypeOf(msg.Run{}).String():         msg.MessageType_RUN,
+		reflect.TypeOf(msg.Subscribe{}).String():   msg.MessageType_SUBSCRIBE,
+		reflect.TypeOf(msg.Unsubscribe{}).String(): msg.MessageType_UNSUBSCRIBE,
+		reflect.TypeOf(msg.LoadPlugin{}).String():  msg.MessageType_LOAD_PLUGIN,
+		reflect.TypeOf(msg.Notify{}).String():      msg.MessageType_NOTIFY,
 	}
 
 	return &SimpleBot{
@@ -230,8 +230,9 @@ func (state *SimpleBot) handleStopped(ctx actor.Context) {
 
 // Proto.Actor central Receive() method which gets passed all messages sent to the post box of this actor.
 func (state *SimpleBot) Receive(ctx actor.Context) {
-	logger.Info("received message", log.PID("receiverActor", ctx.Self()))
-	switch mssg := ctx.Message().(type) {
+	message := ctx.Message()
+	logger.Info("received message", log.PID("receiverActor", ctx.Self()), log.String("messageType", reflect.TypeOf(message).String()))
+	switch mssg := message.(type) {
 	case *actor.Started:
 		state.handleStarted(ctx)
 	case msg.Created:
