@@ -206,7 +206,7 @@ func (state *SimpleBot) handleLoadPlugin(ctx actor.Context, message *msg.LoadPlu
 	pluginIdent := plgn.NewPluginIdentifier(message.Plugin.Name, message.Plugin.Version)
 	err := state.loadPlugin(pluginIdent)
 	if err != nil {
-		logger.Warn("failed to load plugin", log.PID("pid", ctx.Self()), log.String("plugin", pluginIdent.String()))
+		logger.Warn("failed to load plugin", log.PID("pid", ctx.Self()), log.String("plugin", pluginIdent.String()), log.Error(err))
 		return
 	}
 	logger.Info("plugin successfully loaded", log.PID("pid", ctx.Self()), log.String("plugin", pluginIdent.String()))
