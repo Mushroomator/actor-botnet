@@ -33,10 +33,26 @@ func HttpGetAsync(url string, rc chan HttpResponse) {
 	}
 }
 
+// Tries to resolve an IP address for a given domain
 func ResolveHostnameToIp(domain string) (net.IP, error) {
 	ips, err := net.LookupIP(domain)
 	if err != nil || len(ips) < 1 {
 		return nil, fmt.Errorf("Could not get IP for %v: %v\n", domain, err)
 	}
 	return ips[0], nil
+}
+
+func GetIp(host string) (net.IP, error) {
+	// if parsing is successful, what was passed in already is a valid IP address
+	ip := net.ParseIP(host)
+	if ip == nil {
+		// ParseIP returns nil if the it is no valid IP
+		// try to resolve an IP for the given domain
+		var err error
+		ip, err = ResolveHostnameToIp(host)
+		if err != nil {
+			return nil, fmt.Errorf("remote host %v could not be resolved", host)
+		}
+	}
+	return ip, nil
 }

@@ -14,19 +14,14 @@ package bot
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Peer to peer bot.
-type P2PBot interface {
-	// everything a basic bot has
-	BasicBot
+import "net/url"
+
+// Set URL to remote repository
+func (state *Bot) SetRemoteRepoUrl(url *url.URL) {
+	state.pluginRepoUrl = url
 }
 
-type P2PBotStruct struct {
-	base *SimpleBot
-}
-
-// Create a new simple bot
-func NewP2PBotStruct() *P2PBotStruct {
-	return &P2PBotStruct{
-		base: NewSimpleBot(),
-	}
+// Get URL to remote repository
+func (state *Bot) RemoteRepoUrl() *url.URL {
+	return state.pluginRepoUrl
 }
