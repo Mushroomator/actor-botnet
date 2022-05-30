@@ -42,6 +42,8 @@ func (state *Bot) Receive(ctx actor.Context) {
 		state.handleSpawned(ctx, mssg)
 	case *msg.LoadPlugin:
 		state.handleLoadPlugin(ctx, mssg)
+	case *msg.UnloadPlugin:
+		state.handleUnloadPlugin(ctx, mssg)
 	case *msg.Subscribe:
 		state.handleSubscribe(ctx, mssg)
 	case *msg.Unsubscribe:
@@ -54,6 +56,8 @@ func (state *Bot) Receive(ctx actor.Context) {
 		state.handleStopped(ctx)
 	case *actor.Terminated:
 		state.handleTerminated(ctx, mssg)
+	case *msg.Notify:
+		state.handleNotify(ctx, mssg)
 	default:
 		logger.Warn("Received unknown message")
 		return

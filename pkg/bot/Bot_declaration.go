@@ -39,7 +39,7 @@ var (
 // Specification/ Contract which a plugin must obey to
 type PluginContract struct {
 	// A plugins should implement a receive method
-	Receive func(bot *Bot, ctx actor.Context, pluginName string, pluginVersion string)
+	Receive func(bot *Bot, ctx actor.Context, plugin *plgn.PluginIdentifier)
 }
 
 // Holds remote locations (bot nodes) to spawn bots at
@@ -85,6 +85,8 @@ type Pluggable interface {
 	RemoveActivePlugin(plugin *plgn.PluginIdentifier)
 	// Handle *msg.LoadPlugin message
 	handleLoadPlugin(ctx actor.Context, message *msg.LoadPlugin)
+	// Handle *msg.UnloadPlugin message
+	handleUnloadPlugin(ctx actor.Context, message *msg.UnloadPlugin)
 	// Load a plugin. Loads a plugin file which is obtained from a source (e.g. local filesystem, remote repo, peer etc.)
 	loadPlugin(ident *plgn.PluginIdentifier) error
 	// Loads a plugin file from one of the sources
@@ -94,7 +96,7 @@ type Pluggable interface {
 	// load a plugin from the filesystem
 	loadFsLocalPlugin(path string) (*plugin.Plugin, error)
 	// load required functions and variables from plugin
-	loadFunctionsAndVariablesFromPlugin(plgn plugin.Plugin) (*PluginContract, error)
+	loadFunctionsAndVariablesFromPlugin(goPlugin plugin.Plugin) (*PluginContract, error)
 	// method to handle calls to run plugins
 	handleRun(ctx actor.Context)
 	// cleanup Plugin files

@@ -16,6 +16,7 @@ const (
 
 var (
 	SupportedMsgTypes = map[string]msg.MessageType{
+		// self-defined message for a bot
 		reflect.TypeOf(&msg.Created{}).String():     msg.MessageType_CREATED,
 		reflect.TypeOf(&msg.Spawn{}).String():       msg.MessageType_SPAWN,
 		reflect.TypeOf(&msg.Spawned{}).String():     msg.MessageType_SPAWNED,

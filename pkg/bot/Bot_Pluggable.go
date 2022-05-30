@@ -67,7 +67,7 @@ func (state *Bot) handleRun(ctx actor.Context) {
 		if plgn, ok := state.loadedPlugins[*plugin]; ok {
 			// call the plugins Receive() method asynchronously
 			logger.Debug("Executing plugin", log.String("pluginName", plugin.PluginName), log.String("pluginVersion", plugin.PluginVersion), log.PID("bot", ctx.Self()))
-			go plgn.Receive(state, ctx, plugin.PluginName, plugin.PluginVersion)
+			go plgn.Receive(state, ctx, plugin)
 		} else {
 			// should not happen, active plugins are automatically loaded plugins
 			// should it happen (for whatever reason), handle the error gracefully and remove the plugin from the active plugins
@@ -99,6 +99,13 @@ func (state *Bot) handleLoadPlugin(ctx actor.Context, message *msg.LoadPlugin) {
 		// send ourself a run message
 		ctx.Send(ctx.Self(), msg.NewRun())
 	}
+}
+
+// Handle *msg.UnloadPlugin message
+func (state *Bot) handleUnloadPlugin(ctx actor.Context, message *msg.UnloadPlugin) {
+	// check if plugin is already loaded
+	pluginIdent := plgn.NewPluginIdentifier(message.Plugin.Name, message.Plugin.Version)
+	state.RemoveActivePlugin(pluginIdent)
 }
 
 // Load a plugin
@@ -212,13 +219,13 @@ func (state *Bot) loadFsLocalPlugin(path string) (*plugin.Plugin, error) {
 }
 
 // Load all required functions and variables from the plugin file, i. e. a shared object (.so) file.
-func (state *Bot) loadFunctionsAndVariablesFromPlugin(plgn *plugin.Plugin) (*PluginContract, error) {
+func (state *Bot) loadFunctionsAndVariablesFromPlugin(goPlugin *plugin.Plugin) (*PluginContract, error) {
 	symbolName := "Receive"
-	sym, err := plgn.Lookup(symbolName)
+	sym, err := goPlugin.Lookup(symbolName)
 	if err != nil {
 		return nil, err
 	}
-	receive, ok := sym.(func(bot *Bot, ctx actor.Context, pluginName string, pluginVersion string))
+	receive, ok := sym.(func(bot *Bot, ctx actor.Context, plugin *plgn.PluginIdentifier))
 	if !ok {
 		return nil, fmt.Errorf("plugin is missing required method %v", symbolName)
 	}

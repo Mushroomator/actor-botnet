@@ -32,6 +32,11 @@ func (state *Bot) handleUnsubscribe(ctx actor.Context, message *msg.Unsubscribe)
 	state.RemoveSubscriber(message.Unsubscriber, message.MessageTypes...)
 }
 
+// Handle *msg.Notify message
+func (state *Bot) handleNotify(ctx actor.Context, message *msg.Notify) {
+
+}
+
 // Get subscribers
 func (state *Bot) Subscribers() map[msg.MessageType]*actor.PIDSet {
 	return util.CopyMap(state.subscribers)

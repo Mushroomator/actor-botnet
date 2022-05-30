@@ -24,6 +24,10 @@ message LoadPlugin {
     bool RunAfterLoad = 2;
 }
 
+message UnloadPlugin {
+    PluginIdentifier Plugin = 1;
+}
+
 message Run{}
 
 
