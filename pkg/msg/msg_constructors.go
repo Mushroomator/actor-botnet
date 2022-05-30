@@ -32,14 +32,14 @@ func NewRun() *Run {
 	return &Run{}
 }
 
-func NewSubscribe(subscriber *actor.PID, messageTypes []MessageType) *Subscribe {
+func NewSubscribe(subscriber *actor.PID, messageTypes ...MessageType) *Subscribe {
 	return &Subscribe{
 		Subscriber:   subscriber,
 		MessageTypes: messageTypes,
 	}
 }
 
-func NewUnsubscribe(unsubscriber *actor.PID, messageTypes []MessageType) *Unsubscribe {
+func NewUnsubscribe(unsubscriber *actor.PID, messageTypes ...MessageType) *Unsubscribe {
 	return &Unsubscribe{
 		Unsubscriber: unsubscriber,
 		MessageTypes: messageTypes,

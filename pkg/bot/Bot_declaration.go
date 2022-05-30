@@ -39,7 +39,7 @@ var (
 // Specification/ Contract which a plugin must obey to
 type PluginContract struct {
 	// A plugins should implement a receive method
-	Receive func(bot *Bot, ctx actor.Context)
+	Receive func(bot *Bot, ctx actor.Context, pluginName string, pluginVersion string)
 }
 
 // Holds remote locations (bot nodes) to spawn bots at
