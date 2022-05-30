@@ -186,7 +186,7 @@ type Bot struct {
 
 // Create a new simple bot
 func NewSimpleBot(remoter *remote.Remote) *Bot {
-	if remoter != nil {
+	if remoter == nil {
 		panic(errors.New("Remoter must be specified"))
 	}
 	initSubsribers := func(msgTypes []msg.MessageType) map[msg.MessageType]*actor.PIDSet {
