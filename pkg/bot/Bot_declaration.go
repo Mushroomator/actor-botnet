@@ -162,7 +162,7 @@ type Remote struct {
 // comparator for plugins
 func CmpRemote(this, other interface{}) int {
 	p1 := this.(*Remote)
-	p2 := this.(*Remote)
+	p2 := other.(*Remote)
 
 	remote1 := fmt.Sprintf("%v:%v", p1.Host, p1.Port)
 	remote2 := fmt.Sprintf("%v:%v", p2.Host, p2.Port)

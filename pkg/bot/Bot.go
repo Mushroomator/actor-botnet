@@ -26,7 +26,7 @@ import (
 func (state *Bot) Receive(ctx actor.Context) {
 	// log type of message that was received
 	message := ctx.Message()
-	logger.Info("received message", log.PID("receiverActor", ctx.Self()), log.String("messageType", reflect.TypeOf(message).String()))
+	logger.Debug("received message", log.PID("receiverActor", ctx.Self()), log.String("messageType", reflect.TypeOf(message).String()))
 	// add the sender to the list of peers, it sender is specified and not the actor itself
 	if sender := ctx.Sender(); sender != nil && sender != ctx.Self() {
 		state.AddPeer(sender)

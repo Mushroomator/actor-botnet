@@ -61,6 +61,7 @@ func (state *Bot) handleRun(ctx actor.Context) {
 	if state.activePlugins.Size() == 0 {
 		logger.Info("Tried to invoke a plugin while no plugin was loaded")
 	}
+	logger.Debug("Inovking plugins", log.Int("noActivePlugins", state.activePlugins.Size()))
 	state.activePlugins.Each(func(index int, value interface{}) {
 		plugin := value.(*plgn.PluginIdentifier)
 		if plgn, ok := state.loadedPlugins[*plugin]; ok {
@@ -103,6 +104,7 @@ func (state *Bot) handleLoadPlugin(ctx actor.Context, message *msg.LoadPlugin) {
 // Load a plugin
 func (state *Bot) loadPlugin(ident *plgn.PluginIdentifier) error {
 	_, isInMem := state.loadedPlugins[*ident]
+	logger.Debug("plugin already in memory", log.String("pluginName", ident.PluginName), log.String("pluginVersion", ident.PluginVersion))
 	if !isInMem {
 		// plugin is NOT in memory already --> load it
 		plgnFile, err := state.loadPluginFile(*ident)

@@ -26,7 +26,7 @@ type PluginIdentifier struct {
 // comparator for plugins
 func CmpPlugins(this, other interface{}) int {
 	p1 := this.(*PluginIdentifier)
-	p2 := this.(*PluginIdentifier)
+	p2 := other.(*PluginIdentifier)
 
 	switch {
 	case p1.PluginName > p2.PluginName:
