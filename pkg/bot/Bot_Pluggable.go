@@ -116,11 +116,11 @@ func (state *Bot) loadPlugin(ident *plgn.PluginIdentifier) error {
 		// plugin is NOT in memory already --> load it
 		plgnFile, err := state.loadPluginFile(*ident)
 		if err != nil {
-			return fmt.Errorf("could not load plugin %v", ident.String())
+			return fmt.Errorf("could not load plugin %v. Reason: %v", ident.String(), err.Error())
 		}
 		loadedPlgn, err := state.loadFunctionsAndVariablesFromPlugin(plgnFile)
 		if err != nil {
-			return fmt.Errorf("could not load variables/ functions from loaded plugin %v", ident.String())
+			return fmt.Errorf("could not load variables/ functions from loaded plugin %v. Reason: %v", ident.String(), err.Error())
 		}
 		state.loadedPlugins[*ident] = loadedPlgn
 	}
