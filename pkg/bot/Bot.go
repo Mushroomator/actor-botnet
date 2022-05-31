@@ -48,8 +48,6 @@ func (state *Bot) Receive(ctx actor.Context) {
 		state.handleSubscribe(ctx, mssg)
 	case *msg.Unsubscribe:
 		state.handleUnsubscribe(ctx, mssg)
-	case *msg.Run:
-		state.handleRun(ctx)
 	case *actor.Stopping:
 		state.handleStopping(ctx)
 	case *actor.Stopped:
@@ -62,5 +60,6 @@ func (state *Bot) Receive(ctx actor.Context) {
 		logger.Warn("Received unknown message")
 		return
 	}
+	state.handleRun(ctx)
 	state.NotifySubscribers(ctx, ctx.Message())
 }

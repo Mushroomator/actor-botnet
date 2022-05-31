@@ -61,7 +61,7 @@ func (state *Bot) handleRun(ctx actor.Context) {
 	if state.activePlugins.Size() == 0 {
 		logger.Info("Tried to invoke a plugin while no plugin was loaded")
 	}
-	logger.Debug("Inovking plugins", log.Int("noActivePlugins", state.activePlugins.Size()))
+	logger.Debug("Inovking plugins", log.Int("numberActivePlugins", state.activePlugins.Size()))
 	state.activePlugins.Each(func(index int, value interface{}) {
 		plugin := value.(*plgn.PluginIdentifier)
 		if plgn, ok := state.loadedPlugins[*plugin]; ok {
