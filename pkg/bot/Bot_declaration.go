@@ -39,7 +39,7 @@ var (
 // Specification/ Contract which a plugin must obey to
 type PluginContract struct {
 	// A plugins should implement a receive method
-	Receive func(bot *Bot, ctx actor.Context, plugin plgn.PluginIdentifier)
+	Receive func(bot *Bot, ctx actor.Context, plugin plgn.Plugin)
 }
 
 // Holds remote locations (bot nodes) to spawn bots at
@@ -175,7 +175,7 @@ type Bot struct {
 	// list of neigboring bots
 	peers *actor.PIDSet
 	// list of loadedPlugins this bot has
-	loadedPlugins map[plgn.PluginIdentifier]*PluginContract
+	loadedPlugins map[plgn.Plugin]*PluginContract
 	activePlugins *treeset.Set
 	remotes       sets.Set
 	remoter       *remote.Remote
@@ -201,7 +201,7 @@ func NewSimpleBot(remoter *remote.Remote) *Bot {
 
 	return &Bot{
 		peers:         actor.NewPIDSet(),
-		loadedPlugins: make(map[plgn.PluginIdentifier]*PluginContract),
+		loadedPlugins: make(map[plgn.Plugin]*PluginContract),
 		remoter:       remoter,
 		remotes:       treeset.NewWith(CmpRemote),
 		activePlugins: treeset.NewWith(plgn.CmpPlugins),

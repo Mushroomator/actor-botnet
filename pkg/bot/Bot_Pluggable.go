@@ -49,25 +49,25 @@ func (state *Bot) AddActivePlugin(plugin *plgn.PluginIdentifier) {
 }
 
 // Remove a plugin from active plugins.
-func (state *Bot) RemoveActivePlugin(plugin *plgn.PluginIdentifier) {
+func (state *Bot) RemoveActivePlugin(plugin plgn.Plugin) {
 	state.activePlugins.Remove(plugin)
 }
 
 // Handle *msg.Run message
 // Execute the "Receive()" message for every active plugin
 func (state *Bot) handleRun(ctx actor.Context) {
-	toBeRemoved := make([]*plgn.PluginIdentifier, 0)
+	toBeRemoved := make([]plgn.Plugin, 0)
 	// for each plugin execute the Receive method
 	if state.activePlugins.Size() == 0 {
 		logger.Info("Tried to invoke a plugin while no plugin was loaded")
 	}
 	logger.Debug("Inovking plugins", log.Int("numberActivePlugins", state.activePlugins.Size()))
 	state.activePlugins.Each(func(index int, value interface{}) {
-		plugin := value.(*plgn.PluginIdentifier)
-		if plgn, ok := state.loadedPlugins[*plugin]; ok {
+		plugin := value.(plgn.Plugin)
+		if plgn, ok := state.loadedPlugins[plugin]; ok {
 			// call the plugins Receive() method asynchronously
-			logger.Debug("Executing plugin", log.String("pluginName", plugin.PluginName), log.String("pluginVersion", plugin.PluginVersion), log.PID("bot", ctx.Self()))
-			go plgn.Receive(state, ctx, *plugin)
+			logger.Debug("Executing plugin", log.String("pluginName", plugin.PluginName()), log.String("pluginVersion", plugin.PluginVersion()), log.PID("bot", ctx.Self()))
+			go plgn.Receive(state, ctx, plugin)
 		} else {
 			// should not happen, active plugins are automatically loaded plugins
 			// should it happen (for whatever reason), handle the error gracefully and remove the plugin from the active plugins
@@ -109,12 +109,12 @@ func (state *Bot) handleUnloadPlugin(ctx actor.Context, message *msg.UnloadPlugi
 }
 
 // Load a plugin
-func (state *Bot) loadPlugin(ident *plgn.PluginIdentifier) error {
-	_, isInMem := state.loadedPlugins[*ident]
-	logger.Debug("plugin already in memory", log.String("pluginName", ident.PluginName), log.String("pluginVersion", ident.PluginVersion))
+func (state *Bot) loadPlugin(ident plgn.Plugin) error {
+	_, isInMem := state.loadedPlugins[ident]
+	logger.Debug("plugin already in memory", log.String("pluginName", ident.PluginName()), log.String("pluginVersion", ident.PluginVersion()))
 	if !isInMem {
 		// plugin is NOT in memory already --> load it
-		plgnFile, err := state.loadPluginFile(*ident)
+		plgnFile, err := state.loadPluginFile(ident)
 		if err != nil {
 			return fmt.Errorf("could not load plugin %v. Reason: %v", ident.String(), err.Error())
 		}
@@ -122,15 +122,15 @@ func (state *Bot) loadPlugin(ident *plgn.PluginIdentifier) error {
 		if err != nil {
 			return fmt.Errorf("could not load variables/ functions from loaded plugin %v. Reason: %v", ident.String(), err.Error())
 		}
-		state.loadedPlugins[*ident] = loadedPlgn
+		state.loadedPlugins[ident] = loadedPlgn
 	}
 	return nil
 }
 
 // Load a plugin from a plugin file, i. e. a shared object (.so) file either from local file system or from remote repository if it is not found locally.
-func (state *Bot) loadPluginFile(ident plgn.PluginIdentifier) (*plugin.Plugin, error) {
+func (state *Bot) loadPluginFile(ident plgn.Plugin) (*plugin.Plugin, error) {
 	// try to load plugin from local filesystem first
-	plgnPath, err := filepath.Abs(path.Join(configuration.PathToPluginFiles, ident.PluginName+"_"+ident.PluginVersion+".so"))
+	plgnPath, err := filepath.Abs(path.Join(configuration.PathToPluginFiles, ident.PluginName()+"_"+ident.PluginVersion()+".so"))
 	if err != nil {
 		return nil, err
 	}
@@ -156,14 +156,14 @@ func (state *Bot) loadPluginFile(ident plgn.PluginIdentifier) (*plugin.Plugin, e
 }
 
 // Load plugin from source
-func (state *Bot) getPluginFromSource(ident plgn.PluginIdentifier, dest string) error {
+func (state *Bot) getPluginFromSource(ident plgn.Plugin, dest string) error {
 	return state.downloadPlugin(ident, dest)
 }
 
 // Download a plugin file, i. e. a shared object (.so) file from remote repository
-func (state *Bot) downloadPlugin(ident plgn.PluginIdentifier, dest string) error {
+func (state *Bot) downloadPlugin(ident plgn.Plugin, dest string) error {
 	// create URI for plugin
-	urlPath, err := url.Parse(ident.PluginName + "_" + ident.PluginVersion + ".so")
+	urlPath, err := url.Parse(ident.PluginName() + "_" + ident.PluginVersion() + ".so")
 	if err != nil {
 		return err
 	}
@@ -225,7 +225,7 @@ func (state *Bot) loadFunctionsAndVariablesFromPlugin(goPlugin *plugin.Plugin) (
 	if err != nil {
 		return nil, err
 	}
-	receive, ok := sym.(func(bot *Bot, ctx actor.Context, plugin plgn.PluginIdentifier))
+	receive, ok := sym.(func(bot *Bot, ctx actor.Context, plugin plgn.Plugin))
 	if !ok {
 		return nil, fmt.Errorf("plugin is missing required method %v", symbolName)
 	}

@@ -18,24 +18,30 @@ import (
 	"fmt"
 )
 
+type Plugin interface {
+	PluginName() string
+	PluginVersion() string
+	String() string
+}
+
 type PluginIdentifier struct {
-	PluginName    string
-	PluginVersion string
+	PlgnName    string
+	PlgnVersion string
 }
 
 // comparator for plugins
 func CmpPlugins(this, other interface{}) int {
-	p1 := this.(*PluginIdentifier)
-	p2 := other.(*PluginIdentifier)
+	p1 := this.(Plugin)
+	p2 := other.(Plugin)
 
 	switch {
-	case p1.PluginName > p2.PluginName:
+	case p1.PluginName() > p2.PluginVersion():
 		return 1
-	case p1.PluginName < p2.PluginName:
+	case p1.PluginName() < p2.PluginName():
 		return -1
-	case p1.PluginVersion > p2.PluginVersion:
+	case p1.PluginVersion() > p2.PluginVersion():
 		return 1
-	case p1.PluginVersion < p2.PluginVersion:
+	case p1.PluginVersion() < p2.PluginVersion():
 		return -1
 	default:
 		return 0
@@ -43,12 +49,20 @@ func CmpPlugins(this, other interface{}) int {
 }
 
 func (plugin *PluginIdentifier) String() string {
-	return fmt.Sprintf("%v (v%v)", plugin.PluginName, plugin.PluginVersion)
+	return fmt.Sprintf("%v (v%v)", plugin.PlgnName, plugin.PlgnVersion)
+}
+
+func (plugin *PluginIdentifier) PluginName() string {
+	return plugin.PlgnName
+}
+
+func (plugin *PluginIdentifier) PluginVersion() string {
+	return plugin.PlgnVersion
 }
 
 func NewPluginIdentifier(name string, version string) *PluginIdentifier {
 	return &PluginIdentifier{
-		PluginName:    name,
-		PluginVersion: version,
+		PlgnName:    name,
+		PlgnVersion: version,
 	}
 }
