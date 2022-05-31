@@ -67,7 +67,7 @@ func (state *Bot) handleRun(ctx actor.Context) {
 		if plgn, ok := state.loadedPlugins[*plugin]; ok {
 			// call the plugins Receive() method asynchronously
 			logger.Debug("Executing plugin", log.String("pluginName", plugin.PluginName), log.String("pluginVersion", plugin.PluginVersion), log.PID("bot", ctx.Self()))
-			go plgn.Receive(state, ctx, plugin)
+			go plgn.Receive(state, ctx, *plugin)
 		} else {
 			// should not happen, active plugins are automatically loaded plugins
 			// should it happen (for whatever reason), handle the error gracefully and remove the plugin from the active plugins
@@ -225,7 +225,7 @@ func (state *Bot) loadFunctionsAndVariablesFromPlugin(goPlugin *plugin.Plugin) (
 	if err != nil {
 		return nil, err
 	}
-	receive, ok := sym.(func(bot *Bot, ctx actor.Context, plugin *plgn.PluginIdentifier))
+	receive, ok := sym.(func(bot *Bot, ctx actor.Context, plugin plgn.PluginIdentifier))
 	if !ok {
 		return nil, fmt.Errorf("plugin is missing required method %v", symbolName)
 	}
