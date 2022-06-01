@@ -36,10 +36,12 @@ var (
 	logger = log.New(log.DefaultLevel, "[Bot]")
 )
 
+type FinishedFunc func()
+
 // Specification/ Contract which a plugin must obey to
 type PluginContract struct {
 	// A plugins should implement a receive method
-	Receive func(bot *Bot, ctx actor.Context, plugin plgn.Plugin)
+	Receive func(bot *Bot, ctx actor.Context, plugin plgn.Plugin, finished FinishedFunc)
 }
 
 // Holds remote locations (bot nodes) to spawn bots at

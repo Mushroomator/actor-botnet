@@ -22,6 +22,7 @@ import (
 	"path"
 	"path/filepath"
 	"plugin"
+	"sync"
 
 	"github.com/Mushroomator/actor-bots-golang-plugins/pkg/configuration"
 	"github.com/Mushroomator/actor-bots-golang-plugins/pkg/msg"
@@ -62,12 +63,20 @@ func (state *Bot) handleRun(ctx actor.Context) {
 		logger.Info("Tried to invoke a plugin while no plugin was loaded")
 	}
 	logger.Debug("Inovking plugins", log.Int("numberActivePlugins", state.activePlugins.Size()))
+	// to have the context availabel in the plugins the bot must wait until all plugins have processed the messages
+	// Use WaitGroup to wait until all plugins have finished. Plugins must indicate this using finished()
+	var wg sync.WaitGroup
+	wg.Add(state.activePlugins.Size())
+	finished := func() {
+		wg.Done()
+	}
 	state.activePlugins.Each(func(index int, value interface{}) {
 		plugin := value.(plgn.Plugin)
 		if plgn, ok := state.loadedPlugins[plugin]; ok {
-			// call the plugins Receive() method
+			// call the plugins Receive() method concurrently
+
 			logger.Debug("Executing plugin", log.String("pluginName", plugin.PluginName()), log.String("pluginVersion", plugin.PluginVersion()), log.PID("bot", ctx.Self()))
-			plgn.Receive(state, ctx, plugin)
+			go plgn.Receive(state, ctx, plugin, finished)
 		} else {
 			// should not happen, active plugins are automatically loaded plugins
 			// should it happen (for whatever reason), handle the error gracefully and remove the plugin from the active plugins
@@ -225,7 +234,7 @@ func (state *Bot) loadFunctionsAndVariablesFromPlugin(goPlugin *plugin.Plugin) (
 	if err != nil {
 		return nil, err
 	}
-	receive, ok := sym.(func(bot *Bot, ctx actor.Context, plugin plgn.Plugin))
+	receive, ok := sym.(func(bot *Bot, ctx actor.Context, plugin plgn.Plugin, finished FinishedFunc))
 	if !ok {
 		return nil, fmt.Errorf("plugin is missing required method %v", symbolName)
 	}
