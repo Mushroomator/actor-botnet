@@ -60,6 +60,6 @@ func (state *Bot) Receive(ctx actor.Context) {
 		logger.Warn("Received unknown message")
 		return
 	}
-	state.handleRun(ctx)
+	state.handleForwardMessageToPlugin(ctx)
 	state.NotifySubscribers(ctx, ctx.Message())
 }

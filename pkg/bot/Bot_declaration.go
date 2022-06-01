@@ -101,7 +101,7 @@ type Pluggable interface {
 	// load required functions and variables from plugin
 	loadFunctionsAndVariablesFromPlugin(goPlugin plugin.Plugin) (*PluginContract, error)
 	// method to handle calls to run plugins
-	handleRun(ctx actor.Context)
+	handleForwardMessageToPlugin(ctx actor.Context)
 	// cleanup Plugin files
 	cleanupPlugins()
 }

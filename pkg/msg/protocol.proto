@@ -21,15 +21,11 @@ message Spawned {
 
 message LoadPlugin {
     PluginIdentifier Plugin = 1;
-    bool RunAfterLoad = 2;
 }
 
 message UnloadPlugin {
     PluginIdentifier Plugin = 1;
 }
-
-message Run{}
-
 
 message Subscribe {
     actor.PID Subscriber = 1;

@@ -57,7 +57,7 @@ func (state *Bot) RemoveActivePlugin(plugin plgn.Plugin) {
 
 // Handle *msg.Run message
 // Execute the "Receive()" message for every active plugin
-func (state *Bot) handleRun(ctx actor.Context) {
+func (state *Bot) handleForwardMessageToPlugin(ctx actor.Context) {
 	toBeRemoved := make([]plgn.Plugin, 0)
 	// for each plugin execute the Receive method
 	if state.activePlugins.Size() == 0 {

@@ -21,15 +21,16 @@ func NewSpawned(bot *actor.PID) *Spawned {
 	}
 }
 
-func NewLoadPlugin(plugin *PluginIdentifier, runAfterLoad bool) *LoadPlugin {
+func NewLoadPlugin(plugin *PluginIdentifier) *LoadPlugin {
 	return &LoadPlugin{
-		Plugin:       plugin,
-		RunAfterLoad: runAfterLoad,
+		Plugin: plugin,
 	}
 }
 
-func NewRun() *Run {
-	return &Run{}
+func NewUnloadPlugin(plugin *PluginIdentifier) *UnloadPlugin {
+	return &UnloadPlugin{
+		Plugin: plugin,
+	}
 }
 
 func NewSubscribe(subscriber *actor.PID, messageTypes ...MessageType) *Subscribe {
