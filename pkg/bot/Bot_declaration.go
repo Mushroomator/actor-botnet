@@ -28,6 +28,7 @@ import (
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/asynkron/protoactor-go/log"
 	"github.com/asynkron/protoactor-go/remote"
+	"github.com/emirpasic/gods/maps/treemap"
 	"github.com/emirpasic/gods/sets"
 	"github.com/emirpasic/gods/sets/treeset"
 )
@@ -178,7 +179,7 @@ type Bot struct {
 	// list of neigboring bots
 	peers *actor.PIDSet
 	// list of loadedPlugins this bot has
-	loadedPlugins map[plgn.Plugin]*PluginContract
+	loadedPlugins *treemap.Map
 	activePlugins *treeset.Set
 	remotes       sets.Set
 	remoter       *remote.Remote
@@ -204,7 +205,7 @@ func NewSimpleBot(remoter *remote.Remote) *Bot {
 
 	return &Bot{
 		peers:         actor.NewPIDSet(),
-		loadedPlugins: make(map[plgn.Plugin]*PluginContract),
+		loadedPlugins: treemap.NewWith(plgn.CmpPlugins),
 		remoter:       remoter,
 		remotes:       treeset.NewWith(CmpRemote),
 		activePlugins: treeset.NewWith(plgn.CmpPlugins),

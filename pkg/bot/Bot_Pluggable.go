@@ -74,11 +74,11 @@ func (state *Bot) handleForwardMessageToPlugin(ctx actor.Context) {
 
 	state.activePlugins.Each(func(index int, value interface{}) {
 		plugin := value.(plgn.Plugin)
-		if plgn, ok := state.loadedPlugins[plugin]; ok {
+		if loadedPlugin, ok := state.loadedPlugins.Get(plugin); ok {
 			// call the plugins Receive() method concurrently
-
+			plgnContract := loadedPlugin.(*PluginContract)
 			logger.Debug("Executing plugin", log.String("pluginName", plugin.PluginName()), log.String("pluginVersion", plugin.PluginVersion()), log.PID("bot", ctx.Self()))
-			go plgn.Receive(state, ctx, plugin, finished)
+			go plgnContract.Receive(state, ctx, plugin, finished)
 		} else {
 			// should not happen, active plugins are automatically loaded plugins
 			// should it happen (for whatever reason), handle the error gracefully and remove the plugin from the active plugins
@@ -129,9 +129,10 @@ func (state *Bot) handleLoadPlugin(ctx actor.Context, message *msg.LoadPlugin) {
 	// add plugin to the set of active plugins
 	state.AddActivePlugin(pluginIdent)
 	// plugin is in set of active plugins an
-	loadedPlugin, ok := state.loadedPlugins[pluginIdent]
+	loadedPlugin, ok := state.loadedPlugins.Get(pluginIdent)
 	if ok {
-		loadedPlugin.OnActivated(state, ctx, pluginIdent)
+		castPlugin := loadedPlugin.(*PluginContract)
+		castPlugin.OnActivated(state, ctx, pluginIdent)
 		logger.Info("plugin activated.", log.PID("bot", ctx.Self()), log.Stringer("plugin", pluginIdent))
 	} else {
 		// should not happen
@@ -146,12 +147,13 @@ func (state *Bot) handleUnloadPlugin(ctx actor.Context, message *msg.UnloadPlugi
 	logger.Info("plugin found in active plugins?", log.Bool("ok", state.activePlugins.Contains(pluginIdent)), log.Stringer("plugin", pluginIdent))
 	if state.activePlugins.Contains(pluginIdent) {
 		// plugin must exist in here now, so we can ignore ok parameter
-		toBeDeactivated, ok := state.loadedPlugins[pluginIdent]
+		toBeDeactivated, ok := state.loadedPlugins.Get(pluginIdent)
 		logger.Info("loaded plugins: ", log.Object("loadedPlugins", state.loadedPlugins))
 		logger.Info("plugin found in loaded plugins?", log.Bool("ok", ok))
 		if ok {
+			castPlugin := toBeDeactivated.(*PluginContract)
 			logger.Info("plugin", log.Object("pluginMethods", toBeDeactivated))
-			toBeDeactivated.OnDeactivated(state, ctx, pluginIdent)
+			castPlugin.OnDeactivated(state, ctx, pluginIdent)
 			logger.Info("plugin deactivated.", log.PID("bot", ctx.Self()), log.Stringer("plugin", pluginIdent))
 		} else {
 			logger.Warn("could not deactivate plugin. plugin in set of activated plugins, but not loaded in memory.", log.PID("bot", ctx.Self()), log.Stringer("plugin", pluginIdent))
@@ -162,7 +164,7 @@ func (state *Bot) handleUnloadPlugin(ctx actor.Context, message *msg.UnloadPlugi
 
 // Load a plugin
 func (state *Bot) loadPlugin(ident plgn.Plugin) error {
-	_, isInMem := state.loadedPlugins[ident]
+	_, isInMem := state.loadedPlugins.Get(ident)
 	logger.Debug("plugin already in memory", log.String("pluginName", ident.PluginName()), log.String("pluginVersion", ident.PluginVersion()))
 	if !isInMem {
 		// plugin is NOT in memory already --> load it
@@ -174,7 +176,7 @@ func (state *Bot) loadPlugin(ident plgn.Plugin) error {
 		if err != nil {
 			return fmt.Errorf("could not load variables/ functions from loaded plugin %v. Reason: %v", ident.String(), err.Error())
 		}
-		state.loadedPlugins[ident] = loadedPlgn
+		state.loadedPlugins.Put(ident, loadedPlgn)
 	}
 	return nil
 }
