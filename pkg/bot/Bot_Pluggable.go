@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"plugin"
 	"sync"
+	"time"
 
 	"github.com/Mushroomator/actor-bots-golang-plugins/pkg/configuration"
 	"github.com/Mushroomator/actor-bots-golang-plugins/pkg/msg"
@@ -84,11 +85,33 @@ func (state *Bot) handleRun(ctx actor.Context) {
 			logger.Warn("Plugin is declared as active plugin but is not loaded in memory. Removed plugin from active plugins.", log.String("plugin", plugin.String()))
 		}
 	})
+	maxTime := time.Second * 3
+	if waitTimeout(&wg, maxTime) {
+		logger.Warn("At least one plugin has not finished within max time limit for plugin. Have you called the finished() method at the end of the plugin's Receive() function?", log.Stringer("timeLimit", maxTime))
+	} else {
+		logger.Debug("All plugins have finished within the maximum time limit.", log.Stringer("timeLimit", maxTime))
+	}
 	// remove all "dangling" plugins
 	if len(toBeRemoved) > 0 {
 		for _, pluginTbr := range toBeRemoved {
 			state.RemoveActivePlugin(pluginTbr)
 		}
+	}
+}
+
+// waitTimeout waits for the WaitGroup for the specified max timeout.
+// Returns true if waiting timed out.
+func waitTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		wg.Wait()
+	}()
+	select {
+	case <-c:
+		return false // completed normally
+	case <-time.After(timeout):
+		return true // timed out
 	}
 }
 
