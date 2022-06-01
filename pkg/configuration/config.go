@@ -17,10 +17,10 @@ const (
 var (
 	SupportedMsgTypes = map[string]msg.MessageType{
 		// self-defined message for a bot
-		reflect.TypeOf(&msg.Created{}).String():     msg.MessageType_CREATED,
-		reflect.TypeOf(&msg.Spawn{}).String():       msg.MessageType_SPAWN,
-		reflect.TypeOf(&msg.Spawned{}).String():     msg.MessageType_SPAWNED,
-		reflect.TypeOf(&msg.Run{}).String():         msg.MessageType_RUN,
+		reflect.TypeOf(&msg.Created{}).String(): msg.MessageType_CREATED,
+		reflect.TypeOf(&msg.Spawn{}).String():   msg.MessageType_SPAWN,
+		reflect.TypeOf(&msg.Spawned{}).String(): msg.MessageType_SPAWNED,
+		// reflect.TypeOf(&msg.Run{}).String():         msg.MessageType_RUN,
 		reflect.TypeOf(&msg.Subscribe{}).String():   msg.MessageType_SUBSCRIBE,
 		reflect.TypeOf(&msg.Unsubscribe{}).String(): msg.MessageType_UNSUBSCRIBE,
 		reflect.TypeOf(&msg.LoadPlugin{}).String():  msg.MessageType_LOAD_PLUGIN,

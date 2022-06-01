@@ -65,9 +65,9 @@ func (state *Bot) handleRun(ctx actor.Context) {
 	state.activePlugins.Each(func(index int, value interface{}) {
 		plugin := value.(plgn.Plugin)
 		if plgn, ok := state.loadedPlugins[plugin]; ok {
-			// call the plugins Receive() method asynchronously
+			// call the plugins Receive() method
 			logger.Debug("Executing plugin", log.String("pluginName", plugin.PluginName()), log.String("pluginVersion", plugin.PluginVersion()), log.PID("bot", ctx.Self()))
-			go plgn.Receive(state, ctx, plugin)
+			plgn.Receive(state, ctx, plugin)
 		} else {
 			// should not happen, active plugins are automatically loaded plugins
 			// should it happen (for whatever reason), handle the error gracefully and remove the plugin from the active plugins
@@ -95,10 +95,10 @@ func (state *Bot) handleLoadPlugin(ctx actor.Context, message *msg.LoadPlugin) {
 	logger.Info("plugin successfully loaded", log.PID("pid", ctx.Self()), log.String("plugin", pluginIdent.String()))
 	// add plugin to the set of active plugins
 	state.AddActivePlugin(pluginIdent)
-	if message.RunAfterLoad {
-		// send ourself a run message
-		ctx.Send(ctx.Self(), msg.NewRun())
-	}
+	// if message.RunAfterLoad {
+	// 	// send ourself a run message
+	// 	ctx.Send(ctx.Self(), msg.NewRun())
+	// }
 }
 
 // Handle *msg.UnloadPlugin message
