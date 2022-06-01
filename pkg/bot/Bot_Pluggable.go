@@ -71,6 +71,7 @@ func (state *Bot) handleRun(ctx actor.Context) {
 	finished := func() {
 		wg.Done()
 	}
+
 	state.activePlugins.Each(func(index int, value interface{}) {
 		plugin := value.(plgn.Plugin)
 		if plgn, ok := state.loadedPlugins[plugin]; ok {
@@ -85,7 +86,7 @@ func (state *Bot) handleRun(ctx actor.Context) {
 			logger.Warn("Plugin is declared as active plugin but is not loaded in memory. Removed plugin from active plugins.", log.String("plugin", plugin.String()))
 		}
 	})
-	maxTime := time.Second * 3
+	maxTime := time.Second * 15
 	if waitTimeout(&wg, maxTime) {
 		logger.Warn("At least one plugin has not finished within max time limit for plugin. Have you called the finished() method at the end of the plugin's Receive() function?", log.Stringer("timeLimit", maxTime))
 	} else {
@@ -127,17 +128,32 @@ func (state *Bot) handleLoadPlugin(ctx actor.Context, message *msg.LoadPlugin) {
 	logger.Info("plugin successfully loaded", log.PID("pid", ctx.Self()), log.String("plugin", pluginIdent.String()))
 	// add plugin to the set of active plugins
 	state.AddActivePlugin(pluginIdent)
-	// if message.RunAfterLoad {
-	// 	// send ourself a run message
-	// 	ctx.Send(ctx.Self(), msg.NewRun())
-	// }
+	// plugin is in set of active plugins an
+	loadedPlugin, ok := state.loadedPlugins[pluginIdent]
+	if ok {
+		loadedPlugin.OnActivated(state, ctx, pluginIdent)
+		logger.Info("plugin activated.", log.PID("bot", ctx.Self()), log.Stringer("plugin", pluginIdent))
+	} else {
+		// should not happen
+		logger.Warn("could not activate plugin. plugin in set of activated plugins, but not loaded in memory.", log.PID("bot", ctx.Self()), log.Stringer("plugin", pluginIdent))
+	}
 }
 
 // Handle *msg.UnloadPlugin message
 func (state *Bot) handleUnloadPlugin(ctx actor.Context, message *msg.UnloadPlugin) {
 	// check if plugin is already loaded
 	pluginIdent := plgn.NewPluginIdentifier(message.Plugin.Name, message.Plugin.Version)
-	state.RemoveActivePlugin(pluginIdent)
+	if state.activePlugins.Contains(pluginIdent) {
+		// plugin must exist in here now, so we can ignore ok parameter
+		toBeDeactivated, ok := state.loadedPlugins[pluginIdent]
+		if ok {
+			toBeDeactivated.OnDeactivated(state, ctx, pluginIdent)
+			logger.Info("plugin deactivated.", log.PID("bot", ctx.Self()), log.Stringer("plugin", pluginIdent))
+		} else {
+			logger.Warn("could not deactivate plugin. plugin in set of activated plugins, but not loaded in memory.", log.PID("bot", ctx.Self()), log.Stringer("plugin", pluginIdent))
+		}
+		state.RemoveActivePlugin(pluginIdent)
+	}
 }
 
 // Load a plugin
@@ -252,18 +268,39 @@ func (state *Bot) loadFsLocalPlugin(path string) (*plugin.Plugin, error) {
 
 // Load all required functions and variables from the plugin file, i. e. a shared object (.so) file.
 func (state *Bot) loadFunctionsAndVariablesFromPlugin(goPlugin *plugin.Plugin) (*PluginContract, error) {
-	symbolName := "Receive"
-	sym, err := goPlugin.Lookup(symbolName)
+
+	symbolReceiveName := "Receive"
+	sym, err := goPlugin.Lookup(symbolReceiveName)
+	if err != nil {
+		return nil, err
+	}
+	symbolActivatedName := "OnActivated"
+	symActivated, err := goPlugin.Lookup(symbolActivatedName)
+	if err != nil {
+		return nil, err
+	}
+	symbolDeactivatedName := "OnDeactivated"
+	symDeactivated, err := goPlugin.Lookup(symbolDeactivatedName)
 	if err != nil {
 		return nil, err
 	}
 	receive, ok := sym.(func(bot *Bot, ctx actor.Context, plugin plgn.Plugin, finished FinishedFunc))
 	if !ok {
-		return nil, fmt.Errorf("plugin is missing required method %v", symbolName)
+		return nil, fmt.Errorf("plugin is missing required method %v", symbolReceiveName)
+	}
+	activated, ok := symActivated.(func(bot *Bot, ctx actor.Context, plugin plgn.Plugin))
+	if !ok {
+		return nil, fmt.Errorf("plugin is missing required method %v", symbolActivatedName)
+	}
+	deactivated, ok := symDeactivated.(func(bot *Bot, ctx actor.Context, plugin plgn.Plugin))
+	if !ok {
+		return nil, fmt.Errorf("plugin is missing required method %v", symbolDeactivatedName)
 	}
 
 	pluginAttr := &PluginContract{
-		Receive: receive,
+		OnActivated:   activated,
+		OnDeactivated: deactivated,
+		Receive:       receive,
 	}
 	return pluginAttr, nil
 }
