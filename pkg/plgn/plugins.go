@@ -35,7 +35,7 @@ func CmpPlugins(this, other interface{}) int {
 	p2 := other.(Plugin)
 
 	switch {
-	case p1.PluginName() > p2.PluginVersion():
+	case p1.PluginName() > p2.PluginName():
 		return 1
 	case p1.PluginName() < p2.PluginName():
 		return -1
