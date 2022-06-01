@@ -144,15 +144,11 @@ func (state *Bot) handleLoadPlugin(ctx actor.Context, message *msg.LoadPlugin) {
 func (state *Bot) handleUnloadPlugin(ctx actor.Context, message *msg.UnloadPlugin) {
 	// check if plugin is already loaded
 	var pluginIdent plgn.Plugin = plgn.NewPluginIdentifier(message.Plugin.Name, message.Plugin.Version)
-	logger.Info("plugin found in active plugins?", log.Bool("ok", state.activePlugins.Contains(pluginIdent)), log.Stringer("plugin", pluginIdent))
 	if state.activePlugins.Contains(pluginIdent) {
 		// plugin must exist in here now, so we can ignore ok parameter
 		toBeDeactivated, ok := state.loadedPlugins.Get(pluginIdent)
-		logger.Info("loaded plugins: ", log.Object("loadedPlugins", state.loadedPlugins))
-		logger.Info("plugin found in loaded plugins?", log.Bool("ok", ok))
 		if ok {
 			castPlugin := toBeDeactivated.(*PluginContract)
-			logger.Info("plugin", log.Object("pluginMethods", toBeDeactivated))
 			castPlugin.OnDeactivated(state, ctx, pluginIdent)
 			logger.Info("plugin deactivated.", log.PID("bot", ctx.Self()), log.Stringer("plugin", pluginIdent))
 		} else {
