@@ -72,13 +72,23 @@ func (state *Bot) handleForwardMessageToPlugin(ctx actor.Context) {
 		wg.Done()
 	}
 
+	// Goroutine to run a plugin and catches and logs any panic that can possibly occur in a plugin
+	runPluginSafely := func(plgnContract *PluginContract, bot *Bot, ctx actor.Context, plugin plgn.Plugin, finished FinishedFunc) {
+		defer func() {
+			if err := recover(); err != nil {
+				logger.Warn("a plugin exited with a panic", log.PID("bot", ctx.Self()), log.Object("error", err))
+			}
+		}()
+		plgnContract.Receive(state, ctx, plugin, finished)
+	}
+
 	state.activePlugins.Each(func(index int, value interface{}) {
 		plugin := value.(plgn.Plugin)
 		if loadedPlugin, ok := state.loadedPlugins.Get(plugin); ok {
 			// call the plugins Receive() method concurrently
 			plgnContract := loadedPlugin.(*PluginContract)
 			logger.Debug("Executing plugin", log.String("pluginName", plugin.PluginName()), log.String("pluginVersion", plugin.PluginVersion()), log.PID("bot", ctx.Self()))
-			go plgnContract.Receive(state, ctx, plugin, finished)
+			go runPluginSafely(plgnContract, state, ctx, plugin, finished)
 		} else {
 			// should not happen, active plugins are automatically loaded plugins
 			// should it happen (for whatever reason), handle the error gracefully and remove the plugin from the active plugins
@@ -88,7 +98,7 @@ func (state *Bot) handleForwardMessageToPlugin(ctx actor.Context) {
 	})
 	maxTime := time.Second * 15
 	if waitTimeout(&wg, maxTime) {
-		logger.Warn("At least one plugin has not finished within max time limit for plugin. Have you called the finished() method at the end of the plugin's Receive() function?", log.Stringer("timeLimit", maxTime))
+		logger.Warn("At least one plugin has exceeded the max. time limit for plugin. Have you called the finished() method at the end of the plugin's Receive() function?", log.Stringer("timeLimit", maxTime))
 	} else {
 		logger.Debug("All plugins have finished within the maximum time limit.", log.Stringer("timeLimit", maxTime))
 	}

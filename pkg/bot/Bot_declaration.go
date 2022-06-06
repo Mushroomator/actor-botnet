@@ -191,7 +191,7 @@ type Bot struct {
 }
 
 // Create a new simple bot
-func NewSimpleBot(remoter *remote.Remote) *Bot {
+func NewBot(remoter *remote.Remote) *Bot {
 	if remoter == nil {
 		panic(errors.New("Remoter must be specified"))
 	}

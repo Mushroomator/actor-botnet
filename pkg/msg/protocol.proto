@@ -60,9 +60,9 @@ enum MessageType {
     CREATED = 0;
     SPAWN = 1;
     SPAWNED = 2;
-    RUN = 3;
-    SUBSCRIBE = 4;
-    UNSUBSCRIBE = 5;
+    SUBSCRIBE = 3;
+    UNSUBSCRIBE = 4;
+    NOTIFY = 5; 
     LOAD_PLUGIN = 6;
-    NOTIFY = 7; 
+    UNLOAD_PLUGIN = 7;
 }

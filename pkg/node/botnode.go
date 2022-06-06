@@ -36,7 +36,7 @@ func createRemoter(system *actor.ActorSystem, host string, port int) *remote.Rem
 	remoter := remote.NewRemote(system, options)
 	// node should be capable of spawing an actor of kind bot
 	remoter.Register("bot", actor.PropsFromProducer(func() actor.Actor {
-		return bot.NewSimpleBot(remoter)
+		return bot.NewBot(remoter)
 	}))
 	return remoter
 }
